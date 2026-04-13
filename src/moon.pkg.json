@@ -1,0 +1,15 @@
+{
+  "is_main": false,
+  "import": [
+    {
+      "path": "@moonbitlang/core/buffer"
+    }
+  ],
+  "test_import": [],
+  "wasm-export": [
+    "parse_to_json",
+    "get_version",
+    "health_check"
+  ],
+  "wasm-import": []
+}
