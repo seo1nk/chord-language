@@ -30,10 +30,12 @@ import {
   parse_to_html,      // ディグリー表示のスコア HTML
   parse_to_notes_html, // 指定キーの実音表示 HTML
   render_widget_html, // タブ・キー選択・再生・画像コピー付きウィジェット HTML
-  parse_to_playback,  // 再生スケジュール JSON
-  chord_css,          // スコープ付き CSS
+  parse_to_playback,  // 再生スケジュール JSON（bpm/totalBeats/events/bass/cursor）
+  chord_css,          // スコープ付き CSS（ページに 1 回注入）
 } from "./_build/js/release/build/chord_language.js";
 ```
+
+各関数の入出力・フォールバック挙動・Markdown 側（markdown.mbt フォーク）からの統合手順（SSR / プレビュー / クライアントランタイム / ウィジェット DOM コントラクト）は **[docs/api.md](docs/api.md)** を参照。
 
 ## 開発
 
@@ -51,6 +53,7 @@ Markdown への統合（`:::` ブロック）は markdown.mbt フォークの `c
 ## ドキュメント
 
 - [docs/chord.md](docs/chord.md) — 言語仕様（正式 v1.0）
+- [docs/api.md](docs/api.md) — API 仕様書（公開 API と Markdown 側からの呼び方）
 - [docs/spec-test-matrix.md](docs/spec-test-matrix.md) — 仕様とテストの対応表
 - [docs/roadmap.md](docs/roadmap.md) / [docs/development-plan.md](docs/development-plan.md) — 開発ロードマップ（歴史的文書）
 - [docs/product-experience.md](docs/product-experience.md) — プロダクト体験仕様

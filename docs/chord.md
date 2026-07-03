@@ -433,6 +433,8 @@ type ParseError = {
 
 ## 公開 API（JS ターゲット）
 
+詳細な入出力・フォールバック挙動・Markdown 側からの統合手順は [api.md](./api.md) を参照。
+
 | 関数 | 説明 |
 |------|------|
 | `parse_to_json(input)` | `{success, data, errors}` の JSON 文字列 |
