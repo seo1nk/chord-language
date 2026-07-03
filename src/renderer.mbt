@@ -315,9 +315,13 @@ fn write_lyric_html(sb : StringBuilder, frag : String?) -> Unit {
 ///|
 /// セクションラベルを書き出す
 fn write_section_html(sb : StringBuilder, sec : SectionLabel) -> Unit {
-  sb.write_string("<div class=\"chord-section\">")
+  // 白抜き反転バッジ: 外側の background: currentColor は親から継承した文字色、
+  // 内側の span がページ背景色で文字を抜く（同一要素だと currentColor が循環するため分離）
+  sb.write_string(
+    "<div class=\"chord-section\"><span class=\"chord-section-name\">",
+  )
   sb.write_string(escape_html(sec.name))
-  sb.write_string("</div>")
+  sb.write_string("</span></div>")
 }
 
 ///|
@@ -465,7 +469,11 @@ pub fn chord_css() -> String {
     #|.chord-repeat { opacity: 0.7; }
     #|.chord-nc { opacity: 0.85; }
     #|.chord-cell--blank .chord-lyric { margin-top: 1.55em; }
-    #|.chord-section { grid-column: 1 / -1; justify-self: start; font-size: 0.78em; font-weight: 600; letter-spacing: 0.05em; border: 1.5px solid currentColor; border-radius: 3px; padding: 0.05em 0.65em; opacity: 0.85; margin-bottom: -0.5em; }
+    #|.chord-widget, .chord-score { --chord-bg: #ffffff; }
+    #|:root[data-theme="dark"] .chord-widget, :root[data-theme="dark"] .chord-score { --chord-bg: #0d1117; }
+    #|@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chord-widget, :root:not([data-theme="light"]) .chord-score { --chord-bg: #0d1117; } }
+    #|.chord-section { grid-column: 1 / -1; justify-self: start; font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; background: currentColor; border-radius: 3px; padding: 0.12em 0.7em; margin-bottom: -0.5em; }
+    #|.chord-section-name { color: var(--chord-bg); }
     #|.chord-lyric { display: block; font-weight: 400; font-size: 0.72em; letter-spacing: 0; opacity: 0.88; margin-top: 0.15em; white-space: nowrap; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }
@@ -474,10 +482,10 @@ pub fn chord_css() -> String {
     #|.chord-error-msg { color: #d33636; font-size: 0.8em; }
     #|.chord-error-src { margin: 0; opacity: 0.75; white-space: pre-wrap; font-size: 0.9em; }
     #|.chord-widget { margin: 0.75em 0; }
-    #|.chord-tabs { display: flex; gap: 0.4em; align-items: center; }
-    #|.chord-tab { font: inherit; font-size: 0.78em; padding: 0.1em 0.75em; border: 1px solid #8886; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; opacity: 0.65; }
-    #|.chord-tab--active { opacity: 1; border-color: currentColor; font-weight: 600; }
-    #|.chord-key-select { font: inherit; font-size: 0.78em; margin-left: auto; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.05em 0.3em; }
+    #|.chord-tabs { display: flex; align-items: flex-end; gap: 0.3em; border-bottom: 1.5px solid #88888866; padding: 0 0.5em; }
+    #|.chord-tab { font: inherit; font-size: 0.78em; padding: 0.3em 1.1em; border: 1.5px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: transparent; color: inherit; cursor: pointer; opacity: 0.6; margin-bottom: 0; }
+    #|.chord-tab--active { opacity: 1; font-weight: 600; border-color: #88888866; background: var(--chord-bg); margin-bottom: -1.5px; }
+    #|.chord-key-select { font: inherit; font-size: 0.78em; margin-left: auto; align-self: center; margin-bottom: 0.25em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.05em 0.3em; }
     #|.chord-widget[data-chord-active="degree"] .chord-panel--notes { display: none; }
     #|.chord-widget[data-chord-active="notes"] .chord-panel--degree { display: none; }
     #|.chord-widget[data-chord-active="degree"] .chord-key-select { visibility: hidden; }
