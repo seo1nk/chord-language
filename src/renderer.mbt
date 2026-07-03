@@ -120,66 +120,53 @@ fn chord_display_text(node : ChordNode) -> String {
 }
 
 ///|
-/// 行のトークンを小節に分割する。
-/// 返り値: (先頭に小節線があるか, 小節ごとのコード列, 末尾に小節線があるか)
-fn split_measures(
-  tokens : Array[Token],
-) -> (Bool, Array[Array[ChordNode]], Bool) {
-  let measures : Array[Array[ChordNode]] = []
-  let mut current : Array[ChordNode] = []
+/// コードスロット（グリッドの1マス）。小節線はスロット境界の縦線として描画する
+priv enum SlotCell {
+  ChordSlot(ChordNode, Bool) // (コード, 直前に小節線があるか)
+  EmptySlot(Bool) // 空小節のプレースホルダ（|| など）
+}
+
+///|
+/// 行のトークンをコードスロット列に変換する。
+/// 返り値: (行頭に小節線があるか, スロット列, 行末に小節線があるか)
+fn line_slots(tokens : Array[Token]) -> (Bool, Array[SlotCell], Bool) {
+  let slots : Array[SlotCell] = []
+  let mut bar_pending = false
   let mut leading = false
-  let mut trailing = false
+  let mut first = true
   for token in tokens {
     match token {
-      Chord(n) => {
-        current.push(n)
-        trailing = false
-      }
-      BarLine =>
-        if measures.is_empty() && current.is_empty() && !leading {
-          // 行頭の小節線
+      BarLine => {
+        if first {
           leading = true
+        } else if bar_pending {
+          slots.push(EmptySlot(true))
         } else {
-          measures.push(current)
-          current = []
-          trailing = true
+          bar_pending = true
         }
+        first = false
+      }
+      Chord(n) => {
+        slots.push(ChordSlot(n, bar_pending))
+        bar_pending = false
+        first = false
+      }
     }
   }
-  if current.length() > 0 {
-    measures.push(current)
-    trailing = false
-  }
-  (leading, measures, trailing)
+  (leading, slots, bar_pending)
 }
 
 ///|
-/// 1 コードセルを書き出す
-fn write_chord_cell(
-  sb : StringBuilder,
-  node : ChordNode,
-  text_of : (ChordNode) -> String,
-) -> Unit {
-  let color_cls = match node.color {
-    Some(c) => " chord--" + c.to_string()
-    None => ""
-  }
-  sb.write_string("<span class=\"chord-cell chord" + color_cls + "\">")
-  sb.write_string(escape_html(text_of(node)))
-  sb.write_string("</span>")
-}
-
-///|
-/// 1 行分のコード譜を小節グリッドとして書き出す。
-/// 小節はスコア全体で共通の列ラスタ（--chord-cols）に載るため、
-/// 小節線が行をまたいで縦に揃う（実譜面のシステム整列のイメージ）。
-/// 小節内のコードは等幅スロットで配置され、隣接行の近いコード同士が縦に揃う。
+/// 1 行分のコード譜をコードスロットのグリッドとして書き出す。
+/// スロットはスコア全体で共通の列ラスタ（--chord-cols）に載るため、
+/// 行が違っても同じ位置のコード同士が縦に揃う。
+/// 小節線（|）はスロット境界の縦線として描画される。
 fn write_line_html(
   sb : StringBuilder,
   line : Line,
   text_of : (ChordNode) -> String,
 ) -> Unit {
-  let (leading, measures, trailing) = split_measures(line.tokens)
+  let (leading, slots, trailing) = line_slots(line.tokens)
   let mut cls = "chord-line"
   if leading {
     cls = cls + " chord-line--start-bar"
@@ -188,24 +175,39 @@ fn write_line_html(
     cls = cls + " chord-line--end-bar"
   }
   sb.write_string("<div class=\"" + cls + "\">")
-  for measure in measures {
-    sb.write_string("<div class=\"chord-measure\">")
-    for node in measure {
-      write_chord_cell(sb, node, text_of)
+  for slot in slots {
+    match slot {
+      ChordSlot(node, bar_before) => {
+        let color_cls = match node.color {
+          Some(c) => " chord--" + c.to_string()
+          None => ""
+        }
+        let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
+        sb.write_string(
+          "<span class=\"chord-cell chord" + color_cls + bar_cls + "\">",
+        )
+        sb.write_string(escape_html(text_of(node)))
+        sb.write_string("</span>")
+      }
+      EmptySlot(bar_before) => {
+        let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
+        sb.write_string(
+          "<span class=\"chord-cell chord-cell--empty" + bar_cls + "\"></span>",
+        )
+      }
     }
-    sb.write_string("</div>")
   }
   sb.write_string("</div>")
 }
 
 ///|
-/// スコア全体の小節列数（グリッドの列ラスタ）を求める
+/// スコア全体のスロット列数（グリッドの列ラスタ）を求める
 fn score_measure_cols(ast : ScoreAST) -> Int {
   let mut cols = 1
   for line in ast.lines {
-    let (_, measures, _) = split_measures(line.tokens)
-    if measures.length() > cols {
-      cols = measures.length()
+    let (_, slots, _) = line_slots(line.tokens)
+    if slots.length() > cols {
+      cols = slots.length()
     }
   }
   cols
@@ -314,11 +316,10 @@ pub fn chord_css() -> String {
   (
     #|.chord-score { display: flex; flex-direction: column; gap: 1.35em; line-height: 1.5; padding: 0.6em 0; --chord-cols: 4; --chord-barline: 1.5px solid rgba(136, 136, 136, 0.75); }
     #|.chord-line { display: grid; grid-template-columns: repeat(var(--chord-cols), minmax(0, 1fr)); align-items: stretch; }
-    #|.chord-measure { display: flex; align-items: center; column-gap: 0.4em; padding: 0.1em 0.7em; min-height: 1.9em; min-width: 0; }
-    #|.chord-measure + .chord-measure { border-left: var(--chord-barline); }
-    #|.chord-line--start-bar .chord-measure:first-child { border-left: var(--chord-barline); }
-    #|.chord-line--end-bar .chord-measure:last-child { border-right: var(--chord-barline); }
-    #|.chord-measure > .chord { flex: 1 1 0; min-width: 0; }
+    #|.chord-cell { display: block; padding: 0.25em 0.75em; min-height: 1.4em; min-width: 0; }
+    #|.chord-cell--bar-before { border-left: var(--chord-barline); }
+    #|.chord-line--start-bar .chord-cell:first-child { border-left: var(--chord-barline); }
+    #|.chord-line--end-bar .chord-cell:last-child { border-right: var(--chord-barline); }
     #|.chord-cell.chord { font-weight: 500; font-size: 1.06em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }
@@ -424,9 +425,28 @@ pub fn render_widget_html(input : String) -> String {
     "<button type=\"button\" class=\"chord-tab\" data-chord-tab=\"notes\">コード</button>",
   )
   sb.write_string("<select class=\"chord-key-select\" aria-label=\"キー\">")
+  // 宣言キーが一覧と異名同音（例: C# と Db）の場合は、そのスロットを宣言の綴りで置き換える
   let keys = widget_keys()
-  if !keys.contains(initial_key) {
-    keys.push(initial_key)
+  match parse_key_name(initial_key) {
+    Some(ki) => {
+      let pc = key_pitch_class(ki)
+      let mut replaced = false
+      for i in 0..<keys.length() {
+        match parse_key_name(keys[i]) {
+          Some(k2) =>
+            if key_pitch_class(k2) == pc {
+              keys[i] = initial_key
+              replaced = true
+              break
+            }
+          None => ()
+        }
+      }
+      if !replaced {
+        keys.push(initial_key)
+      }
+    }
+    None => if !keys.contains(initial_key) { keys.push(initial_key) }
   }
   for k in keys {
     let selected = if k == initial_key { " selected" } else { "" }

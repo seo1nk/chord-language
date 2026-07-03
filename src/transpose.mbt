@@ -136,3 +136,9 @@ fn chord_note_text(node : ChordNode, key : KeyInfo) -> String {
   }
   root + qual + sev + alt + opts + bass
 }
+
+///|
+/// キーのピッチクラス（0-11。異名同音の判定に使う）
+fn key_pitch_class(key : KeyInfo) -> Int {
+  (letter_semitone(key.letter_idx) + key.alter + 12) % 12
+}
