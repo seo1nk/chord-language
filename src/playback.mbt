@@ -1,9 +1,9 @@
 ///|
 /// 再生スケジュール生成（仕様 v1.6）。
 ///
-/// 拍の解釈は「1 スロット = 1 拍」:
-/// - コード = 1 拍で発音
-/// - グループ（2-5）= スロットを等分割して順に発音
+/// 拍の解釈は「1 スロット = 1 小節（4 拍）」:
+/// - コード = 4 拍で発音
+/// - グループ（2-5）= スロットの 4 拍を等分割して順に発音（2 連結なら 2 拍ずつ）
 /// - `%` = 直前のコードを再打鍵、`_` = 直前の発音を持続（伸ばす）、N.C. = 無音
 /// - 小節線・セクション・歌詞は時間に影響しない
 ///
@@ -185,6 +185,8 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       }
     None => 100
   }
+  // 1 スロット = 4 拍（v1.6.1: 1 コードは 1 小節分鳴らす）
+  let slot_beats = 4.0
   let events : Array[PlayEvent] = []
   let cursor : Array[CursorEntry] = []
   let mut beat = 0.0
@@ -198,47 +200,47 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       match slot {
         ChordSlot(node, _) => {
           let notes = chord_midi_notes(node, tonic_pc)
-          events.push({ beat, dur: 1.0, notes })
+          events.push({ beat, dur: slot_beats, notes })
           last_notes = Some(notes)
           last_event = Some(events.length() - 1)
-          cursor.push({ beat, dur: 1.0, cell })
-          beat = beat + 1.0
+          cursor.push({ beat, dur: slot_beats, cell })
+          beat = beat + slot_beats
         }
         GroupSlot(nodes, _) => {
-          let sub = 1.0 / nodes.length().to_double()
+          let sub = slot_beats / nodes.length().to_double()
           for i, node in nodes {
             let notes = chord_midi_notes(node, tonic_pc)
             events.push({ beat: beat + i.to_double() * sub, dur: sub, notes })
             last_notes = Some(notes)
             last_event = Some(events.length() - 1)
           }
-          cursor.push({ beat, dur: 1.0, cell })
-          beat = beat + 1.0
+          cursor.push({ beat, dur: slot_beats, cell })
+          beat = beat + slot_beats
         }
         RepeatSlot(_) => {
           match last_notes {
             Some(notes) => {
-              events.push({ beat, dur: 1.0, notes })
+              events.push({ beat, dur: slot_beats, notes })
               last_event = Some(events.length() - 1)
             }
             None => () // 直前のコードが無い % は無音
           }
-          cursor.push({ beat, dur: 1.0, cell })
-          beat = beat + 1.0
+          cursor.push({ beat, dur: slot_beats, cell })
+          beat = beat + slot_beats
         }
         NcSlot(_) => {
-          // 無音の 1 拍。_ の持続は N.C. をまたがない
+          // 無音の 1 スロット。_ の持続は N.C. をまたがない
           last_event = None
-          cursor.push({ beat, dur: 1.0, cell })
-          beat = beat + 1.0
+          cursor.push({ beat, dur: slot_beats, cell })
+          beat = beat + slot_beats
         }
         BlankSlot(_) => {
           match last_event {
-            Some(i) => events[i].dur = events[i].dur + 1.0
+            Some(i) => events[i].dur = events[i].dur + slot_beats
             None => ()
           }
-          cursor.push({ beat, dur: 1.0, cell })
-          beat = beat + 1.0
+          cursor.push({ beat, dur: slot_beats, cell })
+          beat = beat + slot_beats
         }
         EmptySlot(_) => () // || の空セルは時間を持たない（セル番号だけ進む）
       }

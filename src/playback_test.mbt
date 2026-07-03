@@ -7,16 +7,16 @@ test "playback basic chord" {
   // ベース 36(C2) + 60(C4) 64(E4) 67(G4)
   assert_true(json.contains("\"notes\":[36,60,64,67]"))
   assert_true(json.contains("\"tempo\":100"))
-  assert_true(json.contains("\"totalBeats\":1"))
+  assert_true(json.contains("\"totalBeats\":4")) // 1 スロット = 4 拍
 }
 
 ///|
 /// _ は直前の発音を持続（dur が伸びる）、% は再打鍵（イベントが増える）
 test "playback sustain and repeat" {
-  // 1 _ _ _ → イベント1つ dur 4
+  // 1 _ _ _ → イベント1つ dur 16（4 スロット × 4 拍）
   let json = @chord_language.parse_to_playback("1 _ _ _", "C")
-  assert_true(json.contains("\"dur\":4"))
-  assert_true(json.contains("\"totalBeats\":4"))
+  assert_true(json.contains("\"dur\":16"))
+  assert_true(json.contains("\"totalBeats\":16"))
   // 1 % → 同じ音のイベント2つ
   let json2 = @chord_language.parse_to_playback("1 %", "C")
   let hits = json2.split("\"notes\":[36,60,64,67]").to_array().length() - 1
@@ -27,9 +27,9 @@ test "playback sustain and repeat" {
 /// N.C. は無音の 1 拍で、_ の持続は N.C. をまたがない
 test "playback nc silence" {
   let json = @chord_language.parse_to_playback("NC 1", "C")
-  assert_true(json.contains("\"totalBeats\":2"))
-  // 最初のイベントは beat 1 から
-  assert_true(json.contains("\"beat\":1"))
+  assert_true(json.contains("\"totalBeats\":8"))
+  // 最初のイベントは beat 4 から
+  assert_true(json.contains("\"beat\":4"))
   // NC _ → イベントなしの 2 拍
   let json2 = @chord_language.parse_to_playback("NC _", "C")
   assert_true(json2.contains("\"events\":[]"))
@@ -39,9 +39,9 @@ test "playback nc silence" {
 /// グループは等分割（2-5 → 0.5 拍ずつ）
 test "playback group subdivision" {
   let json = @chord_language.parse_to_playback("2-5", "C")
-  assert_true(json.contains("\"beat\":0.5"))
-  assert_true(json.contains("\"dur\":0.5"))
-  assert_true(json.contains("\"totalBeats\":1"))
+  assert_true(json.contains("\"beat\":2"))
+  assert_true(json.contains("\"dur\":2"))
+  assert_true(json.contains("\"totalBeats\":4"))
 }
 
 ///|
