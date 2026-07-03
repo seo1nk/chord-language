@@ -481,7 +481,7 @@ pub fn chord_css() -> String {
     #|.chord-line.chord-error { display: flex; flex-direction: column; align-items: stretch; row-gap: 0.2em; border: 1px solid #d3363680; border-radius: 4px; padding: 0.4em 0.6em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     #|.chord-error-msg { color: #d33636; font-size: 0.8em; }
     #|.chord-error-src { margin: 0; opacity: 0.75; white-space: pre-wrap; font-size: 0.9em; }
-    #|.chord-widget { margin: 0.75em 0; }
+    #|.chord-widget { margin: 0.75em 0; border-bottom: 1.5px solid #88888866; padding-bottom: 0.6em; }
     #|.chord-tabs { display: flex; align-items: flex-end; gap: 0.3em; border-bottom: 1.5px solid #88888866; padding: 0 0.5em; }
     #|.chord-tab { font: inherit; font-size: 0.78em; padding: 0.3em 1.1em; border: 1.5px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: transparent; color: inherit; cursor: pointer; opacity: 0.6; margin-bottom: 0; }
     #|.chord-tab--active { opacity: 1; font-weight: 600; border-color: #88888866; background: var(--chord-bg); margin-bottom: -1.5px; }
