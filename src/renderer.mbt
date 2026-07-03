@@ -120,28 +120,102 @@ fn chord_display_text(node : ChordNode) -> String {
 }
 
 ///|
-/// ScoreAST を HTML 文字列に変換する
+/// 1 行分のコード譜を HTML として書き出す
+fn write_line_html(sb : StringBuilder, line : Line) -> Unit {
+  sb.write_string("<div class=\"chord-line\">")
+  for token in line.tokens {
+    match token {
+      Chord(node) => {
+        let color_cls = match node.color {
+          Some(c) => " chord--" + c.to_string()
+          None => ""
+        }
+        sb.write_string("<span class=\"chord-cell chord" + color_cls + "\">")
+        sb.write_string(escape_html(chord_display_text(node)))
+        sb.write_string("</span>")
+      }
+      BarLine =>
+        sb.write_string("<span class=\"chord-cell chord-barline\"></span>")
+    }
+  }
+  sb.write_string("</div>")
+}
+
+///|
+/// エラー行を HTML として書き出す（行番号つきメッセージ + 該当ソース行）
+fn write_error_line_html(
+  sb : StringBuilder,
+  errors : Array[ParseError],
+  source_line : String?,
+) -> Unit {
+  sb.write_string("<div class=\"chord-line chord-error\">")
+  sb.write_string("<span class=\"chord-error-msg\">")
+  let msgs = errors.map(fn(e) { escape_html(e.message()) })
+  sb.write_string(msgs.join("; "))
+  sb.write_string("</span>")
+  match source_line {
+    Some(src) => {
+      sb.write_string("<pre class=\"chord-error-src\">")
+      sb.write_string(escape_html(src))
+      sb.write_string("</pre>")
+    }
+    None => ()
+  }
+  sb.write_string("</div>")
+}
+
+///|
+/// ScoreAST を HTML 文字列に変換する（エラーなしの純粋な描画）
 pub fn render_html(ast : ScoreAST) -> String {
   let sb = StringBuilder::new()
   sb.write_string("<div class=\"chord-score\">")
   for line in ast.lines {
-    sb.write_string("<div class=\"chord-line\">")
-    for token in line.tokens {
-      match token {
-        Chord(node) => {
-          let color_cls = match node.color {
-            Some(c) => " chord--" + c.to_string()
-            None => ""
-          }
-          sb.write_string("<span class=\"chord-cell chord" + color_cls + "\">")
-          sb.write_string(escape_html(chord_display_text(node)))
-          sb.write_string("</span>")
+    write_line_html(sb, line)
+  }
+  sb.write_string("</div>")
+  sb.to_string()
+}
+
+///|
+/// パース結果を HTML に変換する。エラー行は元の行位置に
+/// エラーメッセージ + ソース行として埋め込み、正しい行は描画を続ける。
+pub fn render_result_html(input : String, result : ParseResult) -> String {
+  if result.errors.is_empty() {
+    return render_html(result.score)
+  }
+  // 行番号 → Line / 行番号 → エラー列 のマップ
+  let line_map : Map[Int, Line] = {}
+  for line in result.score.lines {
+    line_map[line.line_number] = line
+  }
+  let err_map : Map[Int, Array[ParseError]] = {}
+  let global_errors : Array[ParseError] = []
+  for e in result.errors {
+    match e.line {
+      Some(l) =>
+        match err_map.get(l) {
+          Some(arr) => arr.push(e)
+          None => err_map[l] = [e]
         }
-        BarLine =>
-          sb.write_string("<span class=\"chord-cell chord-barline\"></span>")
-      }
+      None => global_errors.push(e)
     }
-    sb.write_string("</div>")
+  }
+  let src_lines = split_lines(input)
+  let sb = StringBuilder::new()
+  sb.write_string("<div class=\"chord-score\">")
+  if global_errors.length() > 0 {
+    write_error_line_html(sb, global_errors, None)
+  }
+  for idx in 0..<src_lines.length() {
+    let line_no = idx + 1
+    match line_map.get(line_no) {
+      Some(line) => write_line_html(sb, line)
+      None => ()
+    }
+    match err_map.get(line_no) {
+      Some(errs) => write_error_line_html(sb, errs, Some(src_lines[idx]))
+      None => ()
+    }
   }
   sb.write_string("</div>")
   sb.to_string()
@@ -159,23 +233,16 @@ pub fn chord_css() -> String {
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }
     #|.chord--green { color: #1e9e50; }
-    #|.chord-error { border: 1px solid #d3363680; border-radius: 4px; padding: 0.5em 0.75em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    #|.chord-error-msg { color: #d33636; font-size: 0.85em; margin-bottom: 0.4em; }
-    #|.chord-error-src { margin: 0; opacity: 0.75; white-space: pre-wrap; }
+    #|.chord-line.chord-error { display: flex; flex-direction: column; align-items: stretch; row-gap: 0.2em; border: 1px solid #d3363680; border-radius: 4px; padding: 0.4em 0.6em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    #|.chord-error-msg { color: #d33636; font-size: 0.8em; }
+    #|.chord-error-src { margin: 0; opacity: 0.75; white-space: pre-wrap; font-size: 0.9em; }
   )
 }
 
 ///|
-/// 入力をパースして HTML を返す。パース失敗時はページを壊さず、
-/// 行番号つきエラーメッセージ + ソースの <pre> 表示にフォールバックする。
+/// 入力をパースして HTML を返す。エラーがあってもページを壊さず、
+/// エラー行は元の行位置に行番号・位置つきメッセージ + ソース行として
+/// 埋め込まれ、正しい行のコード譜は描画され続ける。
 pub fn parse_to_html(input : String) -> String {
-  match parse(input) {
-    Ok(ast) => render_html(ast)
-    Err(e) =>
-      "<div class=\"chord-error\"><div class=\"chord-error-msg\">" +
-      escape_html(e.to_string()) +
-      "</div><pre class=\"chord-error-src\">" +
-      escape_html(input) +
-      "</pre></div>"
-  }
+  render_result_html(input, parse(input))
 }

@@ -1,12 +1,20 @@
 ///|
 /// 楽譜
 pub struct ScoreAST {
+  meta : ScoreMeta? // フロントマター（宣言時のみ Some。key 未宣言時の既定値 C は表示層が適用）
   lines : Array[Line]
+}
+
+///|
+/// フロントマターのメタデータ（v1.2）
+pub struct ScoreMeta {
+  key : String? // "C" | "G" | "F#" | "Bb" など（メジャーキーのみ）
 }
 
 ///|
 /// 楽譜の行
 pub struct Line {
+  line_number : Int // 元ソースの行番号（1-indexed。空行・コメント行・フロントマターを含めて数える）
   tokens : Array[Token]
 }
 

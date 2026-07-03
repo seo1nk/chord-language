@@ -37,8 +37,7 @@ test "render error fallback to html" {
   inspect(
     @chord_language.parse_to_html("1 3m7\n8x 5"),
     content=(
-      #|<div class="chord-error"><div class="chord-error-msg">ParseError: Invalid degree '8' (must be 1-7) in '8x' at line 2</div><pre class="chord-error-src">1 3m7
-      #|8x 5</pre></div>
+      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IIIm7</span></div><div class="chord-line chord-error"><span class="chord-error-msg">Invalid degree '8' (must be 1-7) in '8x' at line 2, position 0</span><pre class="chord-error-src">8x 5</pre></div></div>
     ),
   )
 }
@@ -57,4 +56,37 @@ test "chord css is scoped" {
   let css = @chord_language.chord_css()
   assert_true(css.contains(".chord-score"))
   assert_true(css.contains(".chord--red"))
+}
+
+///|
+/// ローマ数字とテンション記号の表示網羅（VI/VII/♭VII、#9/11/#11/♭13/13）
+test "render roman numerals and tension symbols" {
+  inspect(
+    @chord_language.parse_to_html("6 7 b7 1M7(s9,11,s11,b13,13)"),
+    content=(
+      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">VI</span><span class="chord-cell chord">VII</span><span class="chord-cell chord">♭VII</span><span class="chord-cell chord">IM7(#9,11,#11,♭13,13)</span></div></div>
+    ),
+  )
+}
+
+///|
+/// 1 行に複数エラーがある場合の埋め込み表示（メッセージが ; で連結される）
+test "render multiple errors in one line" {
+  inspect(
+    @chord_language.parse_to_html("1M7() b9x"),
+    content=(
+      #|<div class="chord-score"><div class="chord-line chord-error"><span class="chord-error-msg">Empty parentheses are not allowed in '1M7()' at line 1, position 3; Invalid degree '9' (must be 1-7) in 'b9x' at line 1, position 7</span><pre class="chord-error-src">1M7() b9x</pre></div></div>
+    ),
+  )
+}
+
+///|
+/// フロントマターつき入力の描画（meta は現状表示に影響しない）
+test "render with frontmatter" {
+  inspect(
+    @chord_language.parse_to_html("---\nkey: G\n---\n1 4 5"),
+    content=(
+      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IV</span><span class="chord-cell chord">V</span></div></div>
+    ),
+  )
 }

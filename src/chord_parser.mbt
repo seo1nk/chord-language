@@ -56,9 +56,9 @@ fn parse_degree(
     Some(c) =>
       match Degree::from_char(c) {
         Some(degree) => Ok((state.advance(1), degree))
-        None => Err(invalid_degree_error(c.to_string(), token))
+        None => Err(invalid_degree_error(c.to_string(), token, state.pos))
       }
-    None => Err(invalid_degree_error("", token))
+    None => Err(invalid_degree_error("", token, state.pos))
   }
 }
 
@@ -116,10 +116,13 @@ fn parse_seventh(
       let one_char = remaining.unsafe_substring(start=0, end=1)
       match AddDegree::from_string(one_char) {
         Some(degree) => return Ok((after_add.advance(1), Some(Add(degree))))
-        None => return Err(invalid_seventh_error("add" + one_char, token))
+        None =>
+          return Err(
+            invalid_seventh_error("add" + one_char, token, after_add.pos),
+          )
       }
     }
-    return Err(invalid_seventh_error("add", token))
+    return Err(invalid_seventh_error("add", token, state.pos))
   }
   Ok((state, None))
 }
@@ -144,11 +147,15 @@ fn parse_alteration(
             // sus度数の妥当性チェック（2, 4, 6のみ）
             match degree {
               D2 | D4 | D6 => Ok((after_sus.advance(1), Some(Sus(degree))))
-              _ => Err(invalid_sus_degree_error(c.to_string(), token))
+              _ =>
+                Err(
+                  invalid_sus_degree_error(c.to_string(), token, after_sus.pos),
+                )
             }
-          None => Err(invalid_sus_degree_error(c.to_string(), token))
+          None =>
+            Err(invalid_sus_degree_error(c.to_string(), token, after_sus.pos))
         }
-      None => Err(invalid_sus_degree_error("", token))
+      None => Err(invalid_sus_degree_error("", token, after_sus.pos))
     }
   } else {
     Ok((state, None))
@@ -157,7 +164,11 @@ fn parse_alteration(
 
 ///|
 /// テンションをパース
-fn parse_tension(s : String, token : String) -> Result[Tension, ParseError] {
+fn parse_tension(
+  s : String,
+  token : String,
+  pos : Int,
+) -> Result[Tension, ParseError] {
   match s {
     "b9" => Ok(FlatNine)
     "9" => Ok(Nine)
@@ -166,15 +177,16 @@ fn parse_tension(s : String, token : String) -> Result[Tension, ParseError] {
     "s11" => Ok(SharpEleven)
     "b13" => Ok(FlatThirteen)
     "13" => Ok(Thirteen)
-    _ => Err(invalid_tension_error(s, token))
+    _ => Err(invalid_tension_error(s, token, pos))
   }
 }
 
 ///|
-/// 括弧内オプションの1つをパース
+/// 括弧内オプションの1つをパース（pos はトークン内でのこのオプションの開始位置）
 fn parse_single_option(
   s : String,
   token : String,
+  pos : Int,
 ) -> Result[ChordOption, ParseError] {
   let trimmed = s.trim().to_owned()
 
@@ -194,12 +206,16 @@ fn parse_single_option(
                 D2 | D4 | D6 => return Ok(AlterationOpt(Sus(degree)))
                 _ =>
                   return Err(
-                    invalid_sus_degree_error(degree_char.to_string(), token),
+                    invalid_sus_degree_error(
+                      degree_char.to_string(),
+                      token,
+                      pos,
+                    ),
                   )
               }
             None =>
               return Err(
-                invalid_sus_degree_error(degree_char.to_string(), token),
+                invalid_sus_degree_error(degree_char.to_string(), token, pos),
               )
           }
         None => ()
@@ -207,38 +223,48 @@ fn parse_single_option(
     }
     // "sus"（度数なし）や "sus11" 等もここに落ちる
     let degree_str = trimmed.unsafe_substring(start=3, end=trimmed.length())
-    return Err(invalid_sus_degree_error(degree_str, token))
+    return Err(invalid_sus_degree_error(degree_str, token, pos))
   }
   // テンションとしてパース
-  match parse_tension(trimmed, token) {
+  match parse_tension(trimmed, token, pos) {
     Ok(tension) => Ok(TensionOpt(tension))
     Err(e) => Err(e)
   }
 }
 
 ///|
-/// 括弧内オプションをパース
+/// 括弧内オプションをパース（base_pos は括弧内容のトークン内開始位置）
 fn parse_options(
   content : String,
   token : String,
+  base_pos : Int,
 ) -> Result[Array[ChordOption], ParseError] {
   // 空の括弧チェック
   if content.trim().is_empty() {
-    return Err(empty_parentheses_error(token))
+    return Err(empty_parentheses_error(token, base_pos - 1))
   }
-  let parts = content.split(",").map(fn(v) { v.to_owned() }).to_array()
+  // カンマで分割しつつ、各パートのオフセットを記録
+  let parts : Array[String] = []
+  let offsets : Array[Int] = []
+  let mut off = 0
+  for v in content.split(",") {
+    let s = v.to_owned()
+    parts.push(s)
+    offsets.push(off)
+    off = off + s.length() + 1
+  }
   let options : Array[ChordOption] = []
 
   // カンマの不正使用チェック
-  for part in parts {
+  for i, part in parts {
     if part.trim().is_empty() {
-      return Err(invalid_comma_usage_error(token))
+      return Err(invalid_comma_usage_error(token, base_pos + offsets[i]))
     }
   }
 
   // 各オプションをパース
-  for part in parts {
-    match parse_single_option(part, token) {
+  for i, part in parts {
+    match parse_single_option(part, token, base_pos + offsets[i]) {
       Ok(option) => options.push(option)
       Err(e) => return Err(e)
     }
@@ -260,12 +286,12 @@ fn parse_parenthesized_options(
         Some(close_idx) => {
           // 括弧内の内容を取得
           let content = remaining.unsafe_substring(start=1, end=close_idx)
-          match parse_options(content, token) {
+          match parse_options(content, token, state.pos + 1) {
             Ok(options) => Ok((state.advance(close_idx + 1), options))
             Err(e) => Err(e)
           }
         }
-        None => Err(unmatched_parenthesis_error(token))
+        None => Err(unmatched_parenthesis_error(token, state.pos))
       }
     }
     _ => Ok((state, []))
@@ -289,7 +315,7 @@ fn parse_bass(
         Err(e) =>
           // 度数の文字自体が無い場合のみ MissingBassDegree（"1/8" は InvalidDegree('8') を伝播）
           match after_acc.current_char() {
-            None => Err(missing_bass_degree_error(token))
+            None => Err(missing_bass_degree_error(token, after_acc.pos))
             Some(_) => Err(e)
           }
       }
@@ -309,7 +335,7 @@ fn parse_color(
       let name = state.advance(1).remaining()
       match ChordColor::from_string(name) {
         Some(color) => Ok((state.advance(1 + name.length()), Some(color)))
-        None => Err(invalid_color_error(name, token))
+        None => Err(invalid_color_error(name, token, state.pos))
       }
     }
     _ => Ok((state, None))
@@ -317,7 +343,8 @@ fn parse_color(
 }
 
 ///|
-/// コード文字列をパースしてChordNodeに変換
+/// コード文字列をパースしてChordNodeに変換。
+/// エラーの position はトークン内の 0-indexed 位置（呼び出し側が行内位置へシフトする）。
 pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
   let mut state = ParserState::new(token)
 
@@ -345,6 +372,14 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
       sev
     }
     Err(e) => return Err(e)
+  }
+
+  // 4b. セブンスの重複チェック（1M77 / 17M7 / 1M7add9 など）
+  if seventh is Some(_) {
+    match parse_seventh(state, token) {
+      Ok((_, Some(_))) => return Err(duplicate_seventh_error(token, state.pos))
+      _ => ()
+    }
   }
 
   // 5. オルタレーション（括弧外）
@@ -385,7 +420,7 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
 
   // パース完了チェック：残りの文字列がないことを確認
   if state.pos < state.length {
-    return Err(unrecognized_token_error(token))
+    return Err(unrecognized_token_error(token, state.pos))
   }
   Ok({ accidental, degree, quality, seventh, alteration, options, bass, color })
 }

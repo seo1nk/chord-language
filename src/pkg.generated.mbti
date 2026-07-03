@@ -4,33 +4,33 @@ package "seo1nk/chord_language"
 // Values
 pub fn chord_css() -> String
 
-pub fn duplicate_seventh_error(String) -> ParseError
+pub fn duplicate_seventh_error(String, Int) -> ParseError
 
-pub fn empty_parentheses_error(String) -> ParseError
+pub fn empty_parentheses_error(String, Int) -> ParseError
 
 pub fn get_version() -> String
 
 pub fn health_check() -> String
 
-pub fn invalid_color_error(String, String) -> ParseError
+pub fn invalid_color_error(String, String, Int) -> ParseError
 
-pub fn invalid_comma_usage_error(String) -> ParseError
+pub fn invalid_comma_usage_error(String, Int) -> ParseError
 
-pub fn invalid_degree_error(String, String) -> ParseError
+pub fn invalid_degree_error(String, String, Int) -> ParseError
 
-pub fn invalid_option_error(String, String) -> ParseError
+pub fn invalid_frontmatter_field_error(String, Int) -> ParseError
 
-pub fn invalid_quality_error(String, String) -> ParseError
+pub fn invalid_key_error(String, Int) -> ParseError
 
-pub fn invalid_seventh_error(String, String) -> ParseError
+pub fn invalid_seventh_error(String, String, Int) -> ParseError
 
-pub fn invalid_sus_degree_error(String, String) -> ParseError
+pub fn invalid_sus_degree_error(String, String, Int) -> ParseError
 
-pub fn invalid_tension_error(String, String) -> ParseError
+pub fn invalid_tension_error(String, String, Int) -> ParseError
 
-pub fn missing_bass_degree_error(String) -> ParseError
+pub fn missing_bass_degree_error(String, Int) -> ParseError
 
-pub fn parse(String) -> Result[ScoreAST, ParseError]
+pub fn parse(String) -> ParseResult
 
 pub fn parse_chord(String) -> Result[ChordNode, ParseError]
 
@@ -40,9 +40,13 @@ pub fn parse_to_json(String) -> String
 
 pub fn render_html(ScoreAST) -> String
 
-pub fn unmatched_parenthesis_error(String) -> ParseError
+pub fn render_result_html(String, ParseResult) -> String
 
-pub fn unrecognized_token_error(String) -> ParseError
+pub fn unclosed_frontmatter_error(Int) -> ParseError
+
+pub fn unmatched_parenthesis_error(String, Int) -> ParseError
+
+pub fn unrecognized_token_error(String, Int) -> ParseError
 
 // Errors
 
@@ -110,6 +114,7 @@ pub fn Degree::from_char(Char) -> Self?
 pub fn Degree::to_string(Self) -> String
 
 pub struct Line {
+  line_number : Int
   tokens : Array[Token]
 }
 
@@ -119,17 +124,17 @@ pub struct ParseError {
   line : Int?
   token : String?
 }
+pub fn ParseError::kind_name(Self) -> String
 pub fn ParseError::message(Self) -> String
-pub fn ParseError::semantic(ParseErrorKind, token? : String, position? : Int, line? : Int) -> Self
-pub fn ParseError::syntax(ParseErrorKind, token? : String, position? : Int, line? : Int) -> Self
+pub fn ParseError::shift_position(Self, Int) -> Self
+pub fn ParseError::to_json_value(Self) -> Json
 pub fn ParseError::to_string(Self) -> String
+pub fn ParseError::with_line(Self, Int) -> Self
 
 pub enum ParseErrorKind {
   InvalidDegree(String)
-  InvalidQuality(String)
   InvalidSeventh(String)
   InvalidTension(String)
-  InvalidOption(String)
   UnmatchedParenthesis
   EmptyParentheses
   InvalidCommaUsage
@@ -138,6 +143,14 @@ pub enum ParseErrorKind {
   DuplicateSeventh
   MissingBassDegree
   InvalidSusDegree(String)
+  UnclosedFrontmatter
+  InvalidFrontmatterField(String)
+  InvalidKey(String)
+}
+
+pub struct ParseResult {
+  score : ScoreAST
+  errors : Array[ParseError]
 }
 
 pub enum Quality {
@@ -147,10 +160,16 @@ pub enum Quality {
 }
 
 pub struct ScoreAST {
+  meta : ScoreMeta?
   lines : Array[Line]
 }
 pub fn ScoreAST::to_json(Self) -> String
+pub fn ScoreAST::to_json_value(Self) -> Json
 pub fn ScoreAST::to_string(Self) -> String
+
+pub struct ScoreMeta {
+  key : String?
+}
 
 pub enum Seventh {
   Add(AddDegree)

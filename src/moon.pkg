@@ -1,5 +1,9 @@
 // moon.pkg — root package configuration
 
+import {
+  "moonbitlang/core/debug",
+} for "test"
+
 options(
   link: {
     "js": {

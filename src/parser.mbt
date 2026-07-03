@@ -1,70 +1,53 @@
 ///|
-/// LexTokenをTokenに変換
-fn lex_token_to_token(
-  lex_token : LexToken,
-  line_number : Int,
-) -> Result[Token, ParseError] {
-  match lex_token {
-    ChordToken(chord_str) =>
-      match parse_chord(chord_str) {
-        Ok(chord_node) => Ok(Chord(chord_node))
-        Err(e) =>
-          // エラーに行番号を付与
-          Err({
-            kind: e.kind,
-            position: e.position,
-            line: Some(line_number),
-            token: e.token,
-          })
-      }
-    BarLineToken => Ok(BarLine)
-    LineBreak =>
-      // LineBreakはここでは処理しない（行分割時に除去済み）
-      // 万が一来た場合はエラー
-      Err(
-        ParseError::syntax(
-          UnrecognizedToken("LineBreak in token stream"),
-          line=line_number,
-        ),
-      )
-  }
+/// パース結果（部分 AST + エラー列）。
+/// fail-fast はしない: エラー行は score から除外され errors に集まり、
+/// 正しい行は score.lines に残る（ライブプレビュー用途のエラー耐性設計）。
+pub struct ParseResult {
+  score : ScoreAST
+  errors : Array[ParseError]
 }
 
 ///|
-/// 1行分のLexTokenをLineに変換
-fn parse_line(
-  lex_tokens : Array[LexToken],
-  line_number : Int,
-) -> Result[Line, ParseError] {
-  let tokens : Array[Token] = []
-  for lex_token in lex_tokens {
-    match lex_token_to_token(lex_token, line_number) {
-      Ok(token) => tokens.push(token)
-      Err(e) => return Err(e)
-    }
+/// 入力文字列をパースして ParseResult を返す。
+///
+/// - フロントマター（v1.2、ブロック先頭の `--- key: G ---`）を解釈する
+/// - 行ごとにトークンを解析し、エラーのある行は score から除外して errors に記録する
+/// - 行番号は元ソース基準（1-indexed）、position は行内の 0-indexed 文字位置
+pub fn parse(input : String) -> ParseResult {
+  let all_lines = split_lines(input)
+  let (meta, fm_errors, body_start) = parse_frontmatter(all_lines)
+  let errors : Array[ParseError] = []
+  for e in fm_errors {
+    errors.push(e)
   }
-  Ok({ tokens, })
-}
-
-///|
-/// 入力文字列をパースしてScoreASTを返す
-pub fn parse(input : String) -> Result[ScoreAST, ParseError] {
-  // 1. 字句解析
-  let lex_result = tokenize(input)
-
-  // 2. 行ごとにグループ化
-  let line_groups = group_by_lines(lex_result)
-
-  // 3. 各行をパース（行番号は元ソース基準、1-indexed）
   let lines : Array[Line] = []
-  for entry in line_groups {
-    let (line_number, line_group) = entry
-    match parse_line(line_group, line_number) {
-      Ok(line) => lines.push(line)
-      Err(e) => return Err(e)
+  for idx in body_start..<all_lines.length() {
+    let line_number = idx + 1 // 1-indexed
+    let pos_tokens = tokenize_line(all_lines[idx])
+    if pos_tokens.length() == 0 {
+      continue
+    }
+    let tokens : Array[Token] = []
+    let mut line_ok = true
+    for pt in pos_tokens {
+      match pt.kind {
+        BarTok => tokens.push(BarLine)
+        ChordTok =>
+          match parse_chord(pt.text) {
+            Ok(node) => tokens.push(Chord(node))
+            Err(e) => {
+              // トークン内位置 → 行内位置へシフトし、行番号を付与
+              errors.push(e.shift_position(pt.col).with_line(line_number))
+              line_ok = false
+            }
+          }
+      }
+    }
+    if line_ok {
+      lines.push({ line_number, tokens })
     }
   }
-  Ok({ lines, })
+  { score: { meta, lines }, errors }
 }
 
 ///|
@@ -78,7 +61,7 @@ pub fn ScoreAST::to_string(self : ScoreAST) -> String {
 /// Lineを文字列に変換（デバッグ用）
 fn line_to_string(line : Line) -> String {
   let token_strs = line.tokens.map(token_to_string)
-  "Line [" + token_strs.join(", ") + "]"
+  "Line \{line.line_number} [" + token_strs.join(", ") + "]"
 }
 
 ///|
@@ -163,128 +146,142 @@ fn option_to_string(opt : ChordOption) -> String {
 }
 
 ///|
-/// ScoreASTをJSON文字列に変換
+/// ScoreASTをJSON文字列に変換（仕様書の JSON 形状。エスケープは Json::stringify に委譲）
 pub fn ScoreAST::to_json(self : ScoreAST) -> String {
-  let lines_json = self.lines.map(line_to_json)
-  "{\n  \"type\": \"ScoreBlock\",\n  \"lines\": [\n" +
-  lines_json.map(fn(s) { "    " + s }).join(",\n") +
-  "\n  ]\n}"
+  self.to_json_value().stringify(indent=2)
 }
 
 ///|
-fn line_to_json(line : Line) -> String {
-  let tokens_json = line.tokens.map(token_to_json)
-  "{\n      \"tokens\": [\n" +
-  tokens_json.map(fn(s) { "        " + s }).join(",\n") +
-  "\n      ]\n    }"
+/// ScoreASTを Json 値に変換
+pub fn ScoreAST::to_json_value(self : ScoreAST) -> Json {
+  let obj : Map[String, Json] = {}
+  obj["type"] = Json::string("ScoreBlock")
+  match self.meta {
+    Some(meta) => {
+      let m : Map[String, Json] = {}
+      match meta.key {
+        Some(k) => m["key"] = Json::string(k)
+        None => ()
+      }
+      obj["meta"] = Json::object(m)
+    }
+    None => ()
+  }
+  obj["lines"] = Json::array(self.lines.map(line_to_json_value))
+  Json::object(obj)
 }
 
 ///|
-fn token_to_json(token : Token) -> String {
+fn line_to_json_value(line : Line) -> Json {
+  let obj : Map[String, Json] = {}
+  obj["line"] = Json::number(line.line_number.to_double())
+  obj["tokens"] = Json::array(line.tokens.map(token_to_json_value))
+  Json::object(obj)
+}
+
+///|
+fn token_to_json_value(token : Token) -> Json {
   match token {
-    Chord(node) =>
-      "{\n          \"type\": \"Chord\",\n          \"chord\": " +
-      chord_node_to_json(node) +
-      "\n        }"
-    BarLine => "{ \"type\": \"BarLine\" }"
+    Chord(node) => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("Chord")
+      obj["chord"] = chord_node_to_json_value(node)
+      Json::object(obj)
+    }
+    BarLine => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("BarLine")
+      Json::object(obj)
+    }
   }
 }
 
 ///|
-fn chord_node_to_json(node : ChordNode) -> String {
-  let parts : Array[String] = []
+fn chord_node_to_json_value(node : ChordNode) -> Json {
+  let obj : Map[String, Json] = {}
 
   // accidental
   match node.accidental {
-    Some(Sharp) => parts.push("\"accidental\": \"s\"")
-    Some(Flat) => parts.push("\"accidental\": \"b\"")
+    Some(Sharp) => obj["accidental"] = Json::string("s")
+    Some(Flat) => obj["accidental"] = Json::string("b")
     None => ()
   }
 
   // degree
-  parts.push("\"degree\": \"" + node.degree.to_string() + "\"")
+  obj["degree"] = Json::string(node.degree.to_string())
 
   // quality
   match node.quality {
-    Some(Minor) => parts.push("\"quality\": \"m\"")
-    Some(Diminish) => parts.push("\"quality\": \"dim\"")
-    Some(Augment) => parts.push("\"quality\": \"aug\"")
+    Some(Minor) => obj["quality"] = Json::string("m")
+    Some(Diminish) => obj["quality"] = Json::string("dim")
+    Some(Augment) => obj["quality"] = Json::string("aug")
     None => ()
   }
 
   // seventh
   match node.seventh {
-    Some(Seventh) =>
-      parts.push("\"seventh\": { \"type\": \"seventh\", \"value\": \"7\" }")
-    Some(MajorSeventh) =>
-      parts.push("\"seventh\": { \"type\": \"seventh\", \"value\": \"M7\" }")
-    Some(Sixth) =>
-      parts.push("\"seventh\": { \"type\": \"seventh\", \"value\": \"6\" }")
+    Some(Seventh) => obj["seventh"] = { "type": "seventh", "value": "7" }
+    Some(MajorSeventh) => obj["seventh"] = { "type": "seventh", "value": "M7" }
+    Some(Sixth) => obj["seventh"] = { "type": "seventh", "value": "6" }
     Some(Add(d)) =>
-      parts.push(
-        "\"seventh\": { \"type\": \"add\", \"degree\": \"" +
-        d.to_string() +
-        "\" }",
-      )
+      obj["seventh"] = { "type": "add", "degree": Json::string(d.to_string()) }
     None => ()
   }
 
   // alteration
   match node.alteration {
-    Some(FlatFive) => parts.push("\"alteration\": { \"type\": \"b5\" }")
+    Some(FlatFive) => obj["alteration"] = { "type": "b5" }
     Some(Sus(d)) =>
-      parts.push(
-        "\"alteration\": { \"type\": \"sus\", \"degree\": \"" +
-        d.to_string() +
-        "\" }",
-      )
+      obj["alteration"] = {
+        "type": "sus",
+        "degree": Json::string(d.to_string()),
+      }
     None => ()
   }
 
   // options
   if node.options.length() > 0 {
-    let opts_json = node.options.map(option_to_json)
-    parts.push("\"options\": [" + opts_json.join(", ") + "]")
+    obj["options"] = Json::array(node.options.map(option_to_json_value))
   }
 
   // bass
   match node.bass {
-    Some(b) => parts.push("\"bass\": " + bass_note_to_json(b))
+    Some(b) => obj["bass"] = bass_note_to_json_value(b)
     None => ()
   }
 
   // color
   match node.color {
-    Some(c) => parts.push("\"color\": \"" + c.to_string() + "\"")
+    Some(c) => obj["color"] = Json::string(c.to_string())
     None => ()
   }
-  "{ " + parts.join(", ") + " }"
+  Json::object(obj)
 }
 
 ///|
-fn option_to_json(opt : ChordOption) -> String {
+fn option_to_json_value(opt : ChordOption) -> Json {
   match opt {
-    TensionOpt(FlatNine) => "{ \"type\": \"b9\" }"
-    TensionOpt(Nine) => "{ \"type\": \"9\" }"
-    TensionOpt(SharpNine) => "{ \"type\": \"s9\" }"
-    TensionOpt(Eleven) => "{ \"type\": \"11\" }"
-    TensionOpt(SharpEleven) => "{ \"type\": \"s11\" }"
-    TensionOpt(FlatThirteen) => "{ \"type\": \"b13\" }"
-    TensionOpt(Thirteen) => "{ \"type\": \"13\" }"
-    AlterationOpt(FlatFive) => "{ \"type\": \"b5\" }"
+    TensionOpt(FlatNine) => { "type": "b9" }
+    TensionOpt(Nine) => { "type": "9" }
+    TensionOpt(SharpNine) => { "type": "s9" }
+    TensionOpt(Eleven) => { "type": "11" }
+    TensionOpt(SharpEleven) => { "type": "s11" }
+    TensionOpt(FlatThirteen) => { "type": "b13" }
+    TensionOpt(Thirteen) => { "type": "13" }
+    AlterationOpt(FlatFive) => { "type": "b5" }
     AlterationOpt(Sus(d)) =>
-      "{ \"type\": \"sus\", \"degree\": \"" + d.to_string() + "\" }"
+      { "type": "sus", "degree": Json::string(d.to_string()) }
   }
 }
 
 ///|
-fn bass_note_to_json(bass : BassNote) -> String {
-  let parts : Array[String] = []
+fn bass_note_to_json_value(bass : BassNote) -> Json {
+  let obj : Map[String, Json] = {}
   match bass.accidental {
-    Some(Sharp) => parts.push("\"accidental\": \"s\"")
-    Some(Flat) => parts.push("\"accidental\": \"b\"")
+    Some(Sharp) => obj["accidental"] = Json::string("s")
+    Some(Flat) => obj["accidental"] = Json::string("b")
     None => ()
   }
-  parts.push("\"degree\": \"" + bass.degree.to_string() + "\"")
-  "{ " + parts.join(", ") + " }"
+  obj["degree"] = Json::string(bass.degree.to_string())
+  Json::object(obj)
 }
