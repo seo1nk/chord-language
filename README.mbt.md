@@ -48,7 +48,7 @@ moon info && moon fmt      # インターフェース更新・整形
 
 開発用プレビュー: `moon build --target js --release && python3 -m http.server 8080` して `http://localhost:8080/tools/preview.html`。
 
-Markdown への統合（`:::` ブロック）は markdown.mbt フォークの `chord-integration` ブランチを参照。
+Markdown への統合（`:::` ブロック）は [seo1nk/markdown.mbt](https://github.com/seo1nk/markdown.mbt)（フォーク。本リポジトリを submodule として取り込み）を参照。
 
 ## ドキュメント
 

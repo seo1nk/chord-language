@@ -208,8 +208,10 @@ document.head.appendChild(style);
 
 ### 3.6 ビルドと配信
 
-- chord-language 側: `moon build --target js --release` → `_build/js/release/build/chord_language.js` を import（フォークの vite は `server.fs.allow` に `../chord-language` を追加済み）
+- chord-language はフォークに **git submodule**（`chord-language/`）として取り込まれており、フォークだけ clone すれば動く（`git clone --recursive`。ビルドは `pnpm run build:chord`）
+- `moon build --target js --release` → `_build/js/release/build/chord_language.js` をフォークが import する
 - **chord-language の API を変更したら JS を再ビルドしないとプレビューに反映されない**（症状: import エラーでページ全体が壊れる／古い挙動のまま）
+- chord-language を更新したら、フォーク側で submodule のポインタを進めてコミットする（`cd chord-language && git pull && cd .. && git add chord-language`）
 
 ## 4. 互換性の約束
 
