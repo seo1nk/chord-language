@@ -130,9 +130,9 @@ import {
 
 ### 3.1 SSR 経路（MoonBit）
 
-1. `moon.mod.json` にパス依存を追加（公開後は mooncakes.io のバージョン指定に切替）:
+1. `moon.mod.json` にパス依存を追加（フォークは本リポジトリを `chord-language/` に submodule として取り込んでいる）:
    ```json
-   "deps": { "seo1nk/chord_language": { "path": "../chord-language" } }
+   "deps": { "seo1nk/chord_language": { "path": "chord-language" } }
    ```
 2. `src/moon.pkg` に import を追加:
    ```
