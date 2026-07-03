@@ -138,6 +138,12 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
     }
     None => root_pc
   }
+  // ベースは可聴性のため E2(MIDI 40)〜E♭3(51) の窓に収める。
+  // 低すぎる音（C2 帯）は三角波では小さく聞こえるためオクターブ上げる
+  let mut bass_midi = 36 + bass_pc
+  if bass_midi < 40 {
+    bass_midi = bass_midi + 12
+  }
   let notes : Array[Int] = []
   for i in intervals {
     notes.push(root + i)
@@ -150,7 +156,7 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
       deduped.push(n)
     }
   }
-  (36 + bass_pc, deduped)
+  (bass_midi, deduped)
 }
 
 ///|
