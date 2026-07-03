@@ -6,7 +6,7 @@
 /// 異名同音のスペリングが正しくなる（例: key F# の 7 は E#、key Bb の b3 は D♭）。
 
 ///|
-/// 実音キー（メジャーのみ、v1.2）
+/// 実音キー（メジャーのみ）
 priv struct KeyInfo {
   letter_idx : Int // 0=C, 1=D, 2=E, 3=F, 4=G, 5=A, 6=B
   alter : Int // # = +1, b = -1

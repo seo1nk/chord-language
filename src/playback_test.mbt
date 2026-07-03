@@ -1,4 +1,4 @@
-///| 再生スケジュール（parse_to_playback）のテスト。1 スロット = 1 拍。
+///| 再生スケジュール（parse_to_playback）のテスト。1 スロット = 1 小節。
 
 ///|
 /// 基本: key C の 1 は C メジャートライアド + ベース C2
@@ -10,7 +10,7 @@ test "playback basic chord" {
   assert_true(json.contains("\"note\":48"))
   // 4/4 なら 1 スロットでベース 4 打（beat 3 の刻みがある）
   assert_true(json.contains("\"beat\":3,\"dur\":1,\"note\":48"))
-  assert_true(json.contains("\"tempo\":120")) // 既定 BPM は 120
+  assert_true(json.contains("\"bpm\":120")) // 既定 BPM は 120
   assert_true(json.contains("\"totalBeats\":4")) // 1 スロット = 1 小節（4/4 = 4 拍）
 }
 
@@ -73,19 +73,17 @@ test "playback voicing details" {
 }
 
 ///|
-/// tempo はフロントマターから、カーソルはセル番号つき
-test "playback tempo and cursor" {
-  let json = @chord_language.parse_to_playback(
-    "---\ntempo: 132\n---\n1 | 4", "C",
-  )
-  assert_true(json.contains("\"tempo\":132"))
+/// bpm はフロントマターから、カーソルはセル番号つき
+test "playback bpm and cursor" {
+  let json = @chord_language.parse_to_playback("---\nbpm: 132\n---\n1 | 4", "C")
+  assert_true(json.contains("\"bpm\":132"))
   // カーソル: cell 0 と cell 1（小節線はセルにならない）
   assert_true(json.contains("\"cell\":0"))
   assert_true(json.contains("\"cell\":1"))
 }
 
 ///|
-/// 拍子（v1.7）: スロット長とベースの刻みが変わる
+/// 拍子: スロット長とベースの刻みが変わる
 test "playback time signatures" {
   // 3/4 → 1 スロット 3 拍、ベース 3 打
   let json = @chord_language.parse_to_playback("---\ntime: 3/4\n---\n1", "C")
@@ -103,10 +101,8 @@ test "playback time signatures" {
 }
 
 ///|
-/// bpm フィールド（正式名）と tempo エイリアス
-test "playback bpm field and alias" {
+/// bpm フィールドの反映
+test "playback bpm field" {
   let json = @chord_language.parse_to_playback("---\nbpm: 132\n---\n1", "C")
-  assert_true(json.contains("\"tempo\":132"))
-  let json2 = @chord_language.parse_to_playback("---\ntempo: 90\n---\n1", "C")
-  assert_true(json2.contains("\"tempo\":90"))
+  assert_true(json.contains("\"bpm\":132"))
 }

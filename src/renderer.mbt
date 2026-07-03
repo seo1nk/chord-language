@@ -1,9 +1,13 @@
 ///|
-/// ChordAST → HTML の最小レンダラ（Phase 2 垂直スライス用）。
+/// ChordAST → HTML レンダラ。
 ///
-/// NOTE: 本レンダラは「使い捨て前提」の素朴な実装（docs/roadmap.md Phase 2 参照）。
-/// レイアウト・表示品質の作り込みは Phase 4 で行う。
-/// 回帰検出のゴールデンテストは AST ではなく HTML 出力側に置くこと。
+/// 表示の要点:
+/// - コードスロットグリッド: 各コードを全行共通の等幅スロットに置き、
+///   小節線はスロット境界の縦線として描画する（行をまたいだ縦の整列）
+/// - ディグリーはローマ数字 + ♭/# 記号で表示（実音表示は transpose.mbt）
+/// - ウィジェット（render_widget_html）がタブ・キー選択・再生・画像コピーの
+///   UI を単一ソースで生成し、SSR とライブプレビューの両方が使う
+/// - 回帰検出のゴールデンテストは AST ではなく HTML 出力側に置くこと
 
 ///|
 /// HTML エスケープ（テキストノード・属性値用）
@@ -77,7 +81,6 @@ fn option_display(opt : ChordOption) -> String {
 /// ChordNode を表示用テキストに変換する。
 /// ディグリーはローマ数字、アクシデンタルは ♭ / # 記号にする
 /// （DSL 入力の 1-7 / b / s は変えない。あくまで表示層の変換）。
-/// クオリティ・テンション等の表示位置の調整は Phase 4 で行う。
 fn chord_display_text(node : ChordNode) -> String {
   let acc = match node.accidental {
     Some(a) => accidental_symbol(a)
@@ -326,7 +329,7 @@ fn write_section_html(sb : StringBuilder, sec : SectionLabel) -> Unit {
 
 ///|
 /// スコア全体のスロット列数（グリッドの列ラスタ）を求める
-fn score_measure_cols(ast : ScoreAST) -> Int {
+fn score_slot_cols(ast : ScoreAST) -> Int {
   let mut cols = 1
   for line in ast.lines {
     let (_, slots, _) = line_slots(line.tokens)
@@ -363,7 +366,7 @@ fn write_error_line_html(
 ///|
 /// ScoreAST を HTML 文字列に変換する（表示テキスト関数を指定）
 fn render_score_html(ast : ScoreAST, text_of : (ChordNode) -> String) -> String {
-  let cols = score_measure_cols(ast)
+  let cols = score_slot_cols(ast)
   let sb = StringBuilder::new()
   sb.write_string(
     "<div class=\"chord-score\" style=\"--chord-cols:" +
@@ -422,7 +425,7 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
     section_map[sec.line_number] = sec
   }
   let src_lines = split_lines(input)
-  let cols = score_measure_cols(result.score)
+  let cols = score_slot_cols(result.score)
   let sb = StringBuilder::new()
   sb.write_string(
     "<div class=\"chord-score\" style=\"--chord-cols:" +
@@ -508,7 +511,7 @@ pub fn parse_to_html(input : String) -> String {
 
 ///|
 /// キープルダウンに載せるキー一覧（12 半音。表記は一般的なジャズチャート流儀:
-/// フラット側は Db/Eb/Ab/Bb、F#/Gb はシャープ側を採用。D12 の暫定決定）
+/// フラット側は Db/Eb/Ab/Bb、F#/Gb はシャープ側を採用）
 fn widget_keys() -> Array[String] {
   ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 }
@@ -539,12 +542,13 @@ pub fn parse_to_notes_html(input : String, key : String) -> String {
 
 ///|
 /// タブ（ディグリー / コード）とキープルダウンを備えたウィジェット HTML を生成する。
-/// SSR とライブプレビューの両方がこの単一ソースを使う（docs/chord.md v1.2 表示仕様）。
+/// SSR とライブプレビューの両方がこの単一ソースを使う。
 ///
-/// - デフォルトタブはディグリー（D11）
+/// - デフォルトタブはディグリー
 /// - コードタブの初期キーはフロントマターの key、未宣言なら C（既定値）
-/// - キー変更時の再描画はクライアントランタイムが data-chord-src を
-///   parse_to_notes_html に渡して行う
+/// - キー変更・再生・画像コピーはクライアントランタイム（フォーク側
+///   chord-widget.ts）が data 属性と公開 API（parse_to_notes_html /
+///   parse_to_playback）を使って行う
 /// - パースエラーがある場合はタブなしのエラー埋め込み表示を返す
 pub fn render_widget_html(input : String) -> String {
   let result = parse(input)

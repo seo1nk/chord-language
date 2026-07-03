@@ -78,7 +78,7 @@ test "parse complex chords" {
 }
 
 ///|
-/// 括弧内の空白を許容する（仕様 v1.2.2: `1M7(b9, s11)` は 1 トークン）
+/// 括弧内の空白を許容する（`1M7(b9, s11)` は 1 トークン）
 test "parse options with spaces inside parentheses" {
   let score = parse_ok("1M7(b9, s11) 2m7( b5 )")
   assert_eq(score.lines[0].tokens.length(), 2)
@@ -423,7 +423,7 @@ test "frontmatter errors" {
   }
   match single_error("---\nkey: Gm\n---\n1").kind {
     @chord_language.InvalidKey(_) => () // OK
-    _ => fail("Expected InvalidKey (minor keys not in v1.2)")
+    _ => fail("Expected InvalidKey (minor keys unsupported)")
   }
   // 未知のフィールド
   let e = single_error("---\ncomposer: X\n---\n1")
@@ -670,7 +670,7 @@ test "error records token field" {
 }
 
 ///|
-/// 予約トークンの現行動作の固定（|| は小節線2つ。% は v1.3 で反復記号として実装済み）
+/// 予約トークンの現行動作の固定（|| は小節線2つ）
 test "reserved tokens current behavior" {
   let score = parse_ok("1 || 4")
   assert_eq(score.lines[0].tokens.length(), 4) // 1, |, |, 4
@@ -715,7 +715,7 @@ test "json output includes line numbers" {
 }
 
 ///|
-/// % 反復記号（v1.3）: 独立トークンとしてパースされる
+/// % 反復記号: 独立トークンとしてパースされる
 test "parse repeat marks" {
   let score = parse_ok("1 % % | %")
   assert_eq(score.lines[0].tokens.length(), 5)
@@ -732,7 +732,7 @@ test "parse repeat marks" {
 }
 
 ///|
-/// - グループ（v1.3）: 1 スロット複数コード（~ は互換エイリアス）
+/// - グループ: 1 スロット複数コード
 test "parse dash chord groups" {
   match parse_ok("6m7 2-5").lines[0].tokens[1] {
     @chord_language.ChordGroup(nodes) => {
@@ -763,11 +763,6 @@ test "parse dash chord groups" {
   let json = parse_ok("2-5").to_json()
   assert_true(json.contains("\"type\": \"ChordGroup\""))
   assert_true(json.contains("chords"))
-  // ~ も互換エイリアスとして動く
-  match parse_ok("2~5").lines[0].tokens[0] {
-    @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
-    _ => fail("Expected ChordGroup for tilde alias")
-  }
   // 括弧内の文字は分割されない（テンションは - を含まないが深度追跡の確認）
   match parse_ok("1M7(b9,s11)-5").lines[0].tokens[0] {
     @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
@@ -788,7 +783,7 @@ test "error on invalid dash groups" {
 }
 
 ///|
-/// セクションラベル（v1.4）: [名前] の単独行
+/// セクションラベル: [名前] の単独行
 test "parse section labels" {
   let score = parse_ok(
     "[Aメロ]\n| 1M7 % |\n\n[サビ] # コメント可\n| 4M7 5 |",
@@ -808,7 +803,7 @@ test "parse section labels" {
 }
 
 ///|
-/// 歌詞行（v1.4）: > で始まる行がコードに左から割り当たる
+/// 歌詞行: > で始まる行がコードに左から割り当たる
 test "parse lyric lines" {
   let score = parse_ok(
     "| 1M7 % | 4M7 5 |\n> ひかりの _ さきへ ゆこう",
@@ -834,7 +829,7 @@ test "parse lyric lines" {
 }
 
 ///|
-/// 歌詞行のエラー（v1.4）
+/// 歌詞行のエラー
 test "lyric line errors" {
   // 断片超過: エラーになるがコード行の描画は維持される
   let r1 = @chord_language.parse("1 4\n> あ い う")
@@ -866,7 +861,7 @@ test "lyric line errors" {
 }
 
 ///|
-/// N.C.（v1.5）: NC / N.C. の両表記
+/// N.C.: NC / N.C. の両表記
 test "parse no chord" {
   let score = parse_ok("| NC 1 | N.C. 4 |")
   match score.lines[0].tokens[1] {
@@ -885,7 +880,7 @@ test "parse no chord" {
 }
 
 ///|
-/// 空拍 _（v1.5）: スロットを占有し、空白なしでも区切られる
+/// 空拍 _: スロットを占有し、空白なしでも区切られる
 test "parse empty beats" {
   let score = parse_ok("| 1 _ _ _ |")
   assert_eq(score.lines[0].tokens.length(), 6) // | 1 _ _ _ |
@@ -913,33 +908,30 @@ test "lyrics map to nc and empty beats" {
 }
 
 ///|
-/// フロントマター tempo（v1.6）
-test "parse frontmatter tempo" {
-  match parse_ok("---\nkey: G\ntempo: 132\n---\n1").meta {
-    Some(meta) => @debug.assert_eq(meta.tempo, Some(132))
+/// フロントマター bpm
+test "parse frontmatter bpm" {
+  match parse_ok("---\nkey: G\nbpm: 132\n---\n1").meta {
+    Some(meta) => @debug.assert_eq(meta.bpm, Some(132))
     None => fail("Expected meta")
   }
-  // 不正なテンポ
+  // 不正な bpm
   for
     input in [
-      "---\ntempo: abc\n---\n1", "---\ntempo: 10\n---\n1", "---\ntempo: 999\n---\n1",
+      "---\nbpm: abc\n---\n1", "---\nbpm: 10\n---\n1", "---\nbpm: 999\n---\n1",
     ] {
     match single_error(input).kind {
       @chord_language.InvalidTempo(_) => () // OK
       _ => fail("Expected InvalidTempo for " + input)
     }
   }
-  // JSON には bpm として出る（bpm が正式名、tempo は互換エイリアス）
+  // JSON 出力
   assert_true(
     parse_ok("---\nbpm: 132\n---\n1").to_json().contains("\"bpm\": 132"),
-  )
-  assert_true(
-    parse_ok("---\ntempo: 132\n---\n1").to_json().contains("\"bpm\": 132"),
   )
 }
 
 ///|
-/// フロントマター time（v1.7）: ホワイトリスト制
+/// フロントマター time: ホワイトリスト制
 test "parse frontmatter time signature" {
   match parse_ok("---\ntime: 6/8\n---\n1").meta {
     Some(meta) => @debug.assert_eq(meta.time, Some("6/8"))

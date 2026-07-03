@@ -26,7 +26,7 @@ jobs:
       - name: moon build (js)
         run: moon build --target js --release
 
-      # テスト必須ゲート(Phase 3 でパーサ書き直し完了につき必須化 — docs/roadmap.md 参照)
+      # テスト必須ゲート
       - name: moon test
         run: moon test
 

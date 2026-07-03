@@ -16,14 +16,14 @@ pub enum ParseErrorKind {
   MissingBassDegree // スラッシュベースでディグリーが欠落
   InvalidSusDegree(String) // 不正なsusディグリー（2/4/6以外）
 
-  // フロントマターのエラー（v1.2）
+  // フロントマターのエラー
   UnclosedFrontmatter // 閉じの --- が無い
-  InvalidFrontmatterField(String) // 未知のフィールド（v1.2 は key のみ）
+  InvalidFrontmatterField(String) // 未知のフィールド
   InvalidKey(String) // 不正なキー名（A-G + 任意の #/b 以外）
-  InvalidTempo(String) // 不正なテンポ（整数 20-400 以外。v1.6）
-  InvalidTimeSignature(String) // 不正な拍子（ホワイトリスト外。v1.7）
+  InvalidTempo(String) // 不正な bpm（整数 20-400 以外）
+  InvalidTimeSignature(String) // 不正な拍子（ホワイトリスト外）
 
-  // 歌詞行のエラー（v1.4）
+  // 歌詞行のエラー
   TooManyLyricFragments(Int, Int) // (断片数, コード数) 断片がコード数を超過
   OrphanLyricLine // 直前の行がコード行でない歌詞行
 }
@@ -80,7 +80,7 @@ pub fn ParseError::message(self : ParseError) -> String {
     InvalidSusDegree(d) => "Invalid sus degree '\{d}' (must be 2, 4, or 6)"
     UnclosedFrontmatter => "Frontmatter is not closed (missing '---')"
     InvalidFrontmatterField(f) =>
-      "Invalid frontmatter field '\{f}' (only 'key' is allowed)"
+      "Invalid frontmatter field '\{f}' (allowed: key, bpm, time)"
     InvalidKey(k) => "Invalid key '\{k}' (must be A-G with optional # or b)"
     InvalidTempo(t) => "Invalid tempo '\{t}' (must be an integer 20-400)"
     InvalidTimeSignature(t) =>

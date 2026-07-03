@@ -2,23 +2,23 @@
 /// 楽譜
 pub struct ScoreAST {
   meta : ScoreMeta? // フロントマター（宣言時のみ Some。key 未宣言時の既定値 C は表示層が適用）
-  sections : Array[SectionLabel] // セクションラベル（v1.4。行番号順）
+  sections : Array[SectionLabel] // セクションラベル（行番号順）
   lines : Array[Line]
 }
 
 ///|
-/// セクションラベル（v1.4。`[Aメロ]` のような単独行）
+/// セクションラベル（`[Aメロ]` のような単独行）
 pub struct SectionLabel {
   line_number : Int
   name : String
 }
 
 ///|
-/// フロントマターのメタデータ（v1.2）
+/// フロントマターのメタデータ
 pub struct ScoreMeta {
   key : String? // "C" | "G" | "F#" | "Bb" など（メジャーキーのみ）
-  tempo : Int? // BPM・4分音符基準（v1.6/v1.7。フィールド名は bpm が正式、tempo は互換。20-400。既定 120）
-  time : String? // 拍子（v1.7。"4/4" など。ホワイトリスト制。既定 4/4）
+  bpm : Int? // テンポ。4分音符基準の整数 20-400。未指定時の既定値は 120
+  time : String? // 拍子。"4/4" など（ホワイトリスト制）。未指定時の既定値は 4/4
 }
 
 ///|
@@ -26,8 +26,8 @@ pub struct ScoreMeta {
 pub struct Line {
   line_number : Int // 元ソースの行番号（1-indexed。空行・コメント行・フロントマターを含めて数える）
   tokens : Array[Token]
-  // ペア歌詞行（v1.4）: コード系トークン（Chord/ChordGroup/Repeat）に左から
-  // 割り当てられた歌詞断片。None = そのコードには歌詞なし。空配列 = 歌詞行なし
+  // ペア歌詞行: コード系トークンに左から割り当てられた歌詞断片。
+  // None = そのコードには歌詞なし。空配列 = 歌詞行なし
   mut lyrics : Array[String?]
 }
 
@@ -35,11 +35,11 @@ pub struct Line {
 /// 行の要素
 pub enum Token {
   Chord(ChordNode)
-  ChordGroup(Array[ChordNode]) // - で連結された同一スロットのコード列（v1.3）
+  ChordGroup(Array[ChordNode]) // - で連結された同一スロットのコード列
   BarLine
-  Repeat // %（直前のコードの反復。v1.3）
-  NoChord // NC / N.C.（コードなし。v1.5）
-  EmptyBeat // _（空の拍。スロットを占有し歌詞を割り当てられる。v1.5）
+  Repeat // %（直前のコードの反復）
+  NoChord // NC / N.C.（コードなし）
+  EmptyBeat // _（空の拍。スロットを占有し歌詞を割り当てられる）
 }
 
 ///|

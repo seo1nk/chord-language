@@ -1,5 +1,5 @@
 ///|
-/// HTML レンダラのゴールデンテスト（Phase 3 の AST/エラー型変更に対する回帰検出面）
+/// HTML レンダラのゴールデンテスト（AST・エラー型変更に対する回帰検出面）
 test "render basic score to html" {
   inspect(
     @chord_language.parse_to_html("1 3m7 | 4M7 5"),
@@ -92,7 +92,7 @@ test "render with frontmatter" {
 }
 
 ///|
-/// % 反復と ~ グループの描画（ユーザー実例の形）
+/// % 反復と - グループの描画
 test "render repeat and group slots" {
   inspect(
     @chord_language.parse_to_html("6m7 3m/5 4m 2-5 | %"),

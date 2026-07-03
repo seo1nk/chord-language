@@ -22,7 +22,7 @@ fn is_whitespace(c : Char) -> Bool {
 
 ///|
 /// 1 行を字句解析する。
-/// - `#` から行末まではコメント（仕様 v1.2.2）
+/// - `#` から行末まではコメント
 /// - 括弧 `(` `)` の内側では空白でトークンを区切らない（`1M7(b9, s11)` を 1 トークンとして扱う）
 fn tokenize_line(line : String) -> Array[PosToken] {
   let tokens : Array[PosToken] = []

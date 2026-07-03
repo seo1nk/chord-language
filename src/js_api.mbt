@@ -1,5 +1,5 @@
 ///|
-/// JavaScriptから呼び出せるパース関数
+/// JavaScript から呼び出せるパース関数（JS ターゲットの公開 API）
 ///
 /// 入力: コード譜の文字列
 /// 出力: JSON 文字列
@@ -18,7 +18,7 @@ pub fn parse_to_json(input : String) -> String {
 ///|
 /// バージョン情報を返す（デバッグ用）
 pub fn get_version() -> String {
-  "0.1.0"
+  "1.0.0"
 }
 
 ///|

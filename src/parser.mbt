@@ -10,7 +10,7 @@ pub struct ParseResult {
 ///|
 /// 入力文字列をパースして ParseResult を返す。
 ///
-/// - フロントマター（v1.2、ブロック先頭の `--- key: G ---`）を解釈する
+/// - フロントマター（ブロック先頭の `--- key: G ---` 等）を解釈する
 /// - 行ごとにトークンを解析し、エラーのある行は score から除外して errors に記録する
 /// - 行番号は元ソース基準（1-indexed）、position は行内の 0-indexed 文字位置
 pub fn parse(input : String) -> ParseResult {
@@ -27,7 +27,7 @@ pub fn parse(input : String) -> ParseResult {
     let raw = all_lines[idx]
     let trimmed = raw.trim().to_owned()
 
-    // 歌詞行（v1.4）: > で始まる行は直前のコード行への歌詞割り当て
+    // 歌詞行: > で始まる行は直前のコード行への歌詞割り当て
     if trimmed.has_prefix(">") {
       let fragments = parse_lyric_fragments(trimmed)
       // 直前の「ソース上の前の行」がパース済みのコード行であること
@@ -64,7 +64,7 @@ pub fn parse(input : String) -> ParseResult {
       continue
     }
 
-    // セクションラベル（v1.4）: [名前] の単独行（# 以降のコメントは除去）
+    // セクションラベル: [名前] の単独行（# 以降のコメントは除去）
     let content = match raw.find("#") {
       Some(hash_idx) => raw.unsafe_substring(start=0, end=hash_idx)
       None => raw
@@ -92,8 +92,7 @@ pub fn parse(input : String) -> ParseResult {
         RepeatTok => tokens.push(Repeat)
         BlankTok => tokens.push(EmptyBeat)
         ChordTok => {
-          // - で連結されたグループ（1 スロット複数コード、v1.3）を分割
-          // （~ は v1.3.0 の旧記法。互換エイリアスとして残す）
+          // - で連結されたグループ（1 スロット複数コード）を分割
           let (parts, offsets) = split_group_parts(pt.text)
           // 全パートが空（"---" など区切り文字だけのトークン）は 1 つの
           // UnrecognizedToken として報告する
@@ -113,7 +112,7 @@ pub fn parse(input : String) -> ParseResult {
             line_ok = false
           } else if parts.length() == 1 &&
             (pt.text == "NC" || pt.text == "N.C.") {
-            // NC / N.C.（コードなし。v1.5）
+            // NC / N.C.（コードなし）
             tokens.push(NoChord)
           } else if parts.length() == 1 {
             match parse_chord(pt.text) {
@@ -207,7 +206,7 @@ fn count_lyric_slots(tokens : Array[Token]) -> Int {
 }
 
 ///|
-/// グループ区切り（- / ~）でトークンを分割する。括弧の内側では分割しない。
+/// グループ区切り（-）でトークンを分割する。括弧の内側では分割しない。
 /// 返り値: (パート列, 各パートのトークン内開始オフセット)
 fn split_group_parts(text : String) -> (Array[String], Array[Int]) {
   let parts : Array[String] = []
@@ -217,7 +216,7 @@ fn split_group_parts(text : String) -> (Array[String], Array[Int]) {
   let mut depth = 0
   let mut start = 0
   for i, c in chars {
-    if depth == 0 && (c == '-' || c == '~') {
+    if depth == 0 && c == '-' {
       parts.push(sb.to_string())
       offsets.push(start)
       sb.reset()
@@ -355,7 +354,7 @@ pub fn ScoreAST::to_json_value(self : ScoreAST) -> Json {
         Some(k) => m["key"] = Json::string(k)
         None => ()
       }
-      match meta.tempo {
+      match meta.bpm {
         Some(t) => m["bpm"] = Json::number(t.to_double())
         None => ()
       }

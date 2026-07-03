@@ -189,7 +189,7 @@ pub fn ScoreAST::to_string(Self) -> String
 
 pub struct ScoreMeta {
   key : String?
-  tempo : Int?
+  bpm : Int?
   time : String?
 }
 

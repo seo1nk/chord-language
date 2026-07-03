@@ -379,3 +379,16 @@
 | 拍子によるスロット長と刻み（3/4・6/8 付点4分・2/2） | playback_test.mbt: "playback time signatures" |
 | bpm 正式名と tempo エイリアス | playback_test.mbt: "playback bpm field and alias" / parser_test.mbt: "parse frontmatter tempo" |
 | time のホワイトリスト検証（4/5・13/8・44 はエラー） | parser_test.mbt: "parse frontmatter time signature" |
+
+
+---
+
+### 2026-07-04: 仕様 v1.0 正式化
+
+実装済み仕様を正式 v1.0 として確定し、docs/chord.md を再構成した。あわせて旧記法の互換実装を削除:
+- `~` グループ区切り（→ `-` のみ）
+- `tempo:` エイリアス（→ `bpm:` のみ。ScoreMeta のフィールドも bpm に改名）
+- ` ```chord ` フェンス互換（→ `:::` のみ。フォーク内部の言語キーは chord-block に改名）
+- 再生 JSON のフィールド tempo → bpm、パッケージ版数 1.0.0
+
+上記に伴い、削除された互換のテスト（~ エイリアス・tempo エイリアス・```chord ウィジェット化）も削除・置換済み。

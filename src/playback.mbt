@@ -1,5 +1,5 @@
 ///|
-/// 再生スケジュール生成（仕様 v1.6）。
+/// 再生スケジュール生成。
 ///
 /// 拍の解釈は「1 スロット = 1 小節」。小節の長さは拍子（time、既定 4/4）で決まる:
 /// - コード = 上声を 1 小節持続、ベース音は拍ごとに刻む（連打）
@@ -58,7 +58,7 @@ fn add_degree_interval(d : AddDegree) -> Int {
 
 ///|
 /// ChordNode を (ベース音, 上声ノート列) に変換する（上声は重複除去済み・昇順）。
-/// テンションも鳴らす（v1.6 仕様決定）。
+/// テンションも鳴らす。
 fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
   let acc = match node.accidental {
     Some(Sharp) => 1
@@ -162,7 +162,7 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
 ///|
 /// 入力をパースし、指定キーでの再生スケジュールを JSON で返す。
 ///
-/// 返り値: { "tempo": BPM, "totalBeats": 拍数,
+/// 返り値: { "bpm": BPM, "totalBeats": 拍数,
 ///           "events": [{"beat","dur","notes":[MIDI...]}],
 ///           "cursor": [{"beat","dur","cell"}] }
 /// - key が不正な場合はフロントマターの key（無ければ C）を使う
@@ -186,9 +186,9 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       }
   }
   let tonic_pc = key_pitch_class(key_info)
-  let tempo = match result.score.meta {
+  let bpm = match result.score.meta {
     Some(meta) =>
-      match meta.tempo {
+      match meta.bpm {
         Some(t) => t
         None => 120
       }
@@ -309,7 +309,7 @@ pub fn parse_to_playback(input : String, key : String) -> String {
     }
   }
   let obj : Map[String, Json] = {}
-  obj["tempo"] = Json::number(tempo.to_double())
+  obj["bpm"] = Json::number(bpm.to_double())
   obj["totalBeats"] = Json::number(beat)
   obj["events"] = Json::array(
     events.map(fn(ev) {

@@ -1,8 +1,8 @@
 ///|
-/// フロントマター（v1.2）のパース。
+/// フロントマターのパース。
 ///
 /// ブロック先頭の `---` 行から次の `---` 行までを YAML 風のフィールド列として解釈する。
-/// v1.2 で定義されるフィールドは `key` のみ。
+/// フィールドは `key` / `bpm` / `time`。
 /// 返り値: (メタデータ, エラー列, 本文の開始行インデックス)
 
 ///|
@@ -53,7 +53,7 @@ fn parse_frontmatter(
   }
   let errors : Array[ParseError] = []
   let mut key : String? = None
-  let mut tempo : Int? = None
+  let mut bpm : Int? = None
   let mut time : String? = None
   for idx in 1..<close_idx {
     let line = lines[idx].trim().to_owned()
@@ -77,10 +77,9 @@ fn parse_frontmatter(
           } else {
             errors.push(invalid_key_error(value, line_no))
           }
-        } else if name == "bpm" || name == "tempo" {
-          // bpm が正式名（v1.7）。tempo は v1.6 の互換エイリアス
-          match parse_tempo_value(value) {
-            Some(bpm) => tempo = Some(bpm)
+        } else if name == "bpm" {
+          match parse_bpm_value(value) {
+            Some(v) => bpm = Some(v)
             None => errors.push(invalid_tempo_error(value, line_no))
           }
         } else if name == "time" {
@@ -96,7 +95,7 @@ fn parse_frontmatter(
       None => errors.push(invalid_frontmatter_field_error(line, line_no))
     }
   }
-  (Some({ key, tempo, time }), errors, close_idx + 1)
+  (Some({ key, bpm, time }), errors, close_idx + 1)
 }
 
 ///|
@@ -109,8 +108,8 @@ fn is_valid_time_signature(s : String) -> Bool {
 }
 
 ///|
-/// テンポ値の検証（整数 20-400）
-fn parse_tempo_value(s : String) -> Int? {
+/// bpm 値の検証（整数 20-400）
+fn parse_bpm_value(s : String) -> Int? {
   if s.is_empty() {
     return None
   }
