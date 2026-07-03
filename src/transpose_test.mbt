@@ -9,14 +9,14 @@ test "transpose basic table" {
   inspect(
     @chord_language.parse_to_notes_html("1 4 5 | b7 s4 3m7", "C"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">C</span><span class="chord-cell chord">F</span><span class="chord-cell chord">G</span><span class="chord-cell chord-barline"></span><span class="chord-cell chord">B♭</span><span class="chord-cell chord">F#</span><span class="chord-cell chord">Em7</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line"><div class="chord-measure"><span class="chord-cell chord">C</span><span class="chord-cell chord">F</span><span class="chord-cell chord">G</span></div><div class="chord-measure"><span class="chord-cell chord">B♭</span><span class="chord-cell chord">F#</span><span class="chord-cell chord">Em7</span></div></div></div>
     ),
   )
   // key G: 1 4 5 → G C D、3m7 → Bm7、b7 → F
   inspect(
     @chord_language.parse_to_notes_html("1 4 5 3m7 b7", "G"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">G</span><span class="chord-cell chord">C</span><span class="chord-cell chord">D</span><span class="chord-cell chord">Bm7</span><span class="chord-cell chord">F</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><div class="chord-measure"><span class="chord-cell chord">G</span><span class="chord-cell chord">C</span><span class="chord-cell chord">D</span><span class="chord-cell chord">Bm7</span><span class="chord-cell chord">F</span></div></div></div>
     ),
   )
 }
@@ -28,21 +28,21 @@ test "transpose enharmonic spelling" {
   inspect(
     @chord_language.parse_to_notes_html("7 3", "F#"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">E#</span><span class="chord-cell chord">A#</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><div class="chord-measure"><span class="chord-cell chord">E#</span><span class="chord-cell chord">A#</span></div></div></div>
     ),
   )
   // key Bb: 3 は D、4 は Eb、b3 は Db
   inspect(
     @chord_language.parse_to_notes_html("3 4 b3", "Bb"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">D</span><span class="chord-cell chord">E♭</span><span class="chord-cell chord">D♭</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><div class="chord-measure"><span class="chord-cell chord">D</span><span class="chord-cell chord">E♭</span><span class="chord-cell chord">D♭</span></div></div></div>
     ),
   )
   // key E: b6 は C、6 は C#
   inspect(
     @chord_language.parse_to_notes_html("b6 6", "E"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">C</span><span class="chord-cell chord">C#</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><div class="chord-measure"><span class="chord-cell chord">C</span><span class="chord-cell chord">C#</span></div></div></div>
     ),
   )
 }
@@ -54,7 +54,7 @@ test "transpose complex chord" {
   inspect(
     @chord_language.parse_to_notes_html("s4M7(b5,b9)/b3@red", "G"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord chord--red">C#M7(♭5,♭9)/B♭</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><div class="chord-measure"><span class="chord-cell chord chord--red">C#M7(♭5,♭9)/B♭</span></div></div></div>
     ),
   )
 }
