@@ -1,20 +1,24 @@
-///| 楽譜
+///|
+/// 楽譜
 pub struct ScoreAST {
   lines : Array[Line]
 }
 
-///| 楽譜の行
+///|
+/// 楽譜の行
 pub struct Line {
   tokens : Array[Token]
 }
 
-///| 行の要素
+///|
+/// 行の要素
 pub enum Token {
   Chord(ChordNode)
   BarLine
 }
 
-///| コード本体のパース
+///|
+/// コード本体のパース
 pub struct ChordNode {
   accidental : Accidental?
   degree : Degree
@@ -23,6 +27,7 @@ pub struct ChordNode {
   alteration : Alteration? // 括弧外
   options : Array[ChordOption] // 括弧内
   bass : BassNote?
+  color : ChordColor? // 強調色（@blue / @red / @green）
 }
 
 ///|
@@ -31,7 +36,8 @@ pub enum Accidental {
   Flat // b
 }
 
-///| 1-7度
+///|
+/// 1-7度
 pub enum Degree {
   D1
   D2
@@ -42,7 +48,8 @@ pub enum Degree {
   D7
 }
 
-///| コードトーンに追加されるディグリー
+///|
+/// コードトーンに追加されるディグリー
 pub enum AddDegree {
   D2
   D4
@@ -52,7 +59,7 @@ pub enum AddDegree {
   D13
 }
 
-///| 
+///|
 pub enum Quality {
   Minor // m
   Diminish // dim
@@ -67,19 +74,22 @@ pub enum Seventh {
   Sixth // 6
 }
 
-///| セブンスのあとに引っ付いたりするもの
+///|
+/// セブンスのあとに引っ付いたりするもの
 pub enum Alteration {
   FlatFive // b5
   Sus(Degree) // sus2, sus4, etc.
 }
 
-///| カッコ内に書くことがあるもの
+///|
+/// カッコ内に書くことがあるもの
 pub enum ChordOption {
   TensionOpt(Tension)
   AlterationOpt(Alteration)
 }
 
-///| テンション
+///|
+/// テンション
 pub enum Tension {
   FlatNine // b9
   Nine // 9
@@ -90,10 +100,19 @@ pub enum Tension {
   Thirteen // 13
 }
 
-///| ベース
+///|
+/// ベース
 pub struct BassNote {
   accidental : Accidental?
   degree : Degree
+}
+
+///|
+/// コードの強調色（ブログ記事中で目立たせたいコードに付ける表示アノテーション）
+pub enum ChordColor {
+  Blue // @blue
+  Red // @red
+  Green // @green
 }
 
 ///|
@@ -145,5 +164,24 @@ pub fn AddDegree::to_string(self : AddDegree) -> String {
     D9 => "9"
     D11 => "11"
     D13 => "13"
+  }
+}
+
+///|
+pub fn ChordColor::from_string(s : String) -> ChordColor? {
+  match s {
+    "blue" => Some(Blue)
+    "red" => Some(Red)
+    "green" => Some(Green)
+    _ => None
+  }
+}
+
+///|
+pub fn ChordColor::to_string(self : ChordColor) -> String {
+  match self {
+    Blue => "blue"
+    Red => "red"
+    Green => "green"
   }
 }

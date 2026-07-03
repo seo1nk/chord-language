@@ -1,0 +1,174 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "seo1nk/chord_language"
+
+// Values
+pub fn duplicate_seventh_error(String) -> ParseError
+
+pub fn empty_parentheses_error(String) -> ParseError
+
+pub fn get_version() -> String
+
+pub fn health_check() -> String
+
+pub fn invalid_color_error(String, String) -> ParseError
+
+pub fn invalid_comma_usage_error(String) -> ParseError
+
+pub fn invalid_degree_error(String, String) -> ParseError
+
+pub fn invalid_option_error(String, String) -> ParseError
+
+pub fn invalid_quality_error(String, String) -> ParseError
+
+pub fn invalid_seventh_error(String, String) -> ParseError
+
+pub fn invalid_sus_degree_error(String, String) -> ParseError
+
+pub fn invalid_tension_error(String, String) -> ParseError
+
+pub fn missing_bass_degree_error(String) -> ParseError
+
+pub fn parse(String) -> Result[ScoreAST, ParseError]
+
+pub fn parse_chord(String) -> Result[ChordNode, ParseError]
+
+pub fn parse_to_json(String) -> String
+
+pub fn unmatched_parenthesis_error(String) -> ParseError
+
+pub fn unrecognized_token_error(String) -> ParseError
+
+// Errors
+
+// Types and methods
+pub enum Accidental {
+  Sharp
+  Flat
+}
+
+pub enum AddDegree {
+  D2
+  D4
+  D6
+  D9
+  D11
+  D13
+}
+pub fn AddDegree::from_string(String) -> Self?
+pub fn AddDegree::to_string(Self) -> String
+
+pub enum Alteration {
+  FlatFive
+  Sus(Degree)
+}
+
+pub struct BassNote {
+  accidental : Accidental?
+  degree : Degree
+}
+
+pub enum ChordColor {
+  Blue
+  Red
+  Green
+}
+pub fn ChordColor::from_string(String) -> Self?
+pub fn ChordColor::to_string(Self) -> String
+
+pub struct ChordNode {
+  accidental : Accidental?
+  degree : Degree
+  quality : Quality?
+  seventh : Seventh?
+  alteration : Alteration?
+  options : Array[ChordOption]
+  bass : BassNote?
+  color : ChordColor?
+}
+
+pub enum ChordOption {
+  TensionOpt(Tension)
+  AlterationOpt(Alteration)
+}
+
+pub enum Degree {
+  D1
+  D2
+  D3
+  D4
+  D5
+  D6
+  D7
+}
+pub fn Degree::from_char(Char) -> Self?
+pub fn Degree::to_string(Self) -> String
+
+pub struct Line {
+  tokens : Array[Token]
+}
+
+pub struct ParseError {
+  kind : ParseErrorKind
+  position : Int?
+  line : Int?
+  token : String?
+}
+pub fn ParseError::message(Self) -> String
+pub fn ParseError::semantic(ParseErrorKind, token? : String, position? : Int, line? : Int) -> Self
+pub fn ParseError::syntax(ParseErrorKind, token? : String, position? : Int, line? : Int) -> Self
+pub fn ParseError::to_string(Self) -> String
+
+pub enum ParseErrorKind {
+  InvalidDegree(String)
+  InvalidQuality(String)
+  InvalidSeventh(String)
+  InvalidTension(String)
+  InvalidOption(String)
+  UnmatchedParenthesis
+  EmptyParentheses
+  InvalidCommaUsage
+  InvalidColor(String)
+  UnrecognizedToken(String)
+  DuplicateSeventh
+  MissingBassDegree
+  InvalidSusDegree(String)
+}
+
+pub enum Quality {
+  Minor
+  Diminish
+  Augment
+}
+
+pub struct ScoreAST {
+  lines : Array[Line]
+}
+pub fn ScoreAST::to_json(Self) -> String
+pub fn ScoreAST::to_string(Self) -> String
+
+pub enum Seventh {
+  Add(AddDegree)
+  Seventh
+  MajorSeventh
+  Sixth
+}
+
+pub enum Tension {
+  FlatNine
+  Nine
+  SharpNine
+  Eleven
+  SharpEleven
+  FlatThirteen
+  Thirteen
+}
+
+pub enum Token {
+  Chord(ChordNode)
+  BarLine
+}
+
+// Type aliases
+
+// Traits
+

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit toolchain
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Record toolchain versions
+        run: moon version --all || moon version
+
+      # 必須ゲート: 型チェックと JS ビルド
+      - name: moon check
+        run: moon check
+
+      - name: moon build (js)
+        run: moon build --target js
+
+      # テスト(現状は全パスだが、Phase 3 のパーサ書き直しまでは
+      # レポートモードとし、失敗しても CI は落とさない — docs/roadmap.md Phase 1 参照)
+      - name: moon test (report mode)
+        run: moon test
+        continue-on-error: true
+
+      # フォーマット・インターフェースの乖離検知
+      - name: moon info && moon fmt (drift check)
+        run: |
+          moon info
+          moon fmt
+          git diff --exit-code || echo "::warning::moon info/fmt produced diffs — run them locally and commit"
+        continue-on-error: true
+
+      - name: Node smoke test (parse_to_json)
+        run: |
+          node --input-type=module -e "
+          import { parse_to_json, get_version } from './_build/js/release/build/chord_language.js';
+          const r = JSON.parse(parse_to_json('1 3m7 4M7 5 | b7 1'));
+          if (!r.success || r.data.lines.length !== 1) { throw new Error('smoke test failed'); }
+          const c = JSON.parse(parse_to_json('1@red'));
+          if (c.data.lines[0].tokens[0].chord.color !== 'red') { throw new Error('color smoke test failed'); }
+          console.log('smoke OK, version', get_version());
+          "

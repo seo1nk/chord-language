@@ -1,4 +1,5 @@
-///| パースエラーの種類
+///|
+/// パースエラーの種類
 pub enum ParseErrorKind {
   // 構文エラー
   InvalidDegree(String) // 不正なディグリー（1-7以外）
@@ -9,6 +10,7 @@ pub enum ParseErrorKind {
   UnmatchedParenthesis // 括弧の不一致
   EmptyParentheses // 空の括弧 ()
   InvalidCommaUsage // カンマの不正使用
+  InvalidColor(String) // 不正な色指定（blue/red/green以外）
   UnrecognizedToken(String) // 認識できない文字列
 
   // 意味エラー
@@ -17,7 +19,8 @@ pub enum ParseErrorKind {
   InvalidSusDegree(String) // 不正なsusディグリー（2/4/6以外）
 }
 
-///| パースエラー
+///|
+/// パースエラー
 pub struct ParseError {
   kind : ParseErrorKind
   position : Int? // エラー位置（文字列内のインデックス）
@@ -25,7 +28,8 @@ pub struct ParseError {
   token : String? // エラーが発生したトークン
 }
 
-///| エラーメッセージを生成
+///|
+/// エラーメッセージを生成
 pub fn ParseError::message(self : ParseError) -> String {
   let base_msg = match self.kind {
     InvalidDegree(d) => "Invalid degree '\{d}' (must be 1-7)"
@@ -37,6 +41,7 @@ pub fn ParseError::message(self : ParseError) -> String {
     EmptyParentheses => "Empty parentheses are not allowed"
     InvalidCommaUsage =>
       "Invalid comma usage (leading, trailing, or consecutive commas)"
+    InvalidColor(c) => "Invalid color '\{c}' (must be blue, red, or green)"
     UnrecognizedToken(t) => "Unrecognized token '\{t}'"
     DuplicateSeventh => "Duplicate seventh specification"
     MissingBassDegree => "Bass degree is required when slash is present"
@@ -55,75 +60,95 @@ pub fn ParseError::message(self : ParseError) -> String {
   base_msg + token_info + position_info
 }
 
-///| エラーを文字列に変換
+///|
+/// エラーを文字列に変換
 pub fn ParseError::to_string(self : ParseError) -> String {
   "ParseError: " + self.message()
 }
 
-///| 構文エラーを作成
+///|
+/// 構文エラーを作成
 pub fn ParseError::syntax(
-  kind: ParseErrorKind,
-  token?: Option[String] = None,
-  position?: Option[Int] = None,
-  line?: Option[Int] = None,
+  kind : ParseErrorKind,
+  token? : String,
+  position? : Int,
+  line? : Int,
 ) -> ParseError {
   { kind, position, line, token }
 }
 
-///| 意味エラーを作成
+///|
+/// 意味エラーを作成
 pub fn ParseError::semantic(
-  kind: ParseErrorKind,
-  token?: Option[String] = None,
-  position?: Option[Int] = None,
-  line?: Option[Int] = None,
+  kind : ParseErrorKind,
+  token? : String,
+  position? : Int,
+  line? : Int,
 ) -> ParseError {
   { kind, position, line, token }
 }
 
-pub fn invalid_degree_error(degree: String, token: String) -> ParseError {
-  ParseError::syntax(InvalidDegree(degree), token=Some(token))
+///|
+pub fn invalid_degree_error(degree : String, token : String) -> ParseError {
+  ParseError::syntax(InvalidDegree(degree), token~)
 }
 
-pub fn invalid_quality_error(quality: String, token: String) -> ParseError {
-  ParseError::syntax(InvalidQuality(quality), token=Some(token))
+///|
+pub fn invalid_quality_error(quality : String, token : String) -> ParseError {
+  ParseError::syntax(InvalidQuality(quality), token~)
 }
 
-pub fn invalid_seventh_error(seventh: String, token: String) -> ParseError {
-  ParseError::syntax(InvalidSeventh(seventh), token=Some(token))
+///|
+pub fn invalid_seventh_error(seventh : String, token : String) -> ParseError {
+  ParseError::syntax(InvalidSeventh(seventh), token~)
 }
 
-pub fn invalid_tension_error(tension: String, token: String) -> ParseError {
-  ParseError::syntax(InvalidTension(tension), token=Some(token))
+///|
+pub fn invalid_tension_error(tension : String, token : String) -> ParseError {
+  ParseError::syntax(InvalidTension(tension), token~)
 }
 
-pub fn invalid_option_error(option: String, token: String) -> ParseError {
-  ParseError::syntax(InvalidOption(option), token=Some(token))
+///|
+pub fn invalid_option_error(option : String, token : String) -> ParseError {
+  ParseError::syntax(InvalidOption(option), token~)
 }
 
-pub fn unmatched_parenthesis_error(token: String) -> ParseError {
-  ParseError::syntax(UnmatchedParenthesis, token=Some(token))
+///|
+pub fn unmatched_parenthesis_error(token : String) -> ParseError {
+  ParseError::syntax(UnmatchedParenthesis, token~)
 }
 
-pub fn empty_parentheses_error(token: String) -> ParseError {
-  ParseError::syntax(EmptyParentheses, token=Some(token))
+///|
+pub fn empty_parentheses_error(token : String) -> ParseError {
+  ParseError::syntax(EmptyParentheses, token~)
 }
 
-pub fn invalid_comma_usage_error(token: String) -> ParseError {
-  ParseError::syntax(InvalidCommaUsage, token=Some(token))
+///|
+pub fn invalid_comma_usage_error(token : String) -> ParseError {
+  ParseError::syntax(InvalidCommaUsage, token~)
 }
 
-pub fn unrecognized_token_error(token: String) -> ParseError {
-  ParseError::syntax(UnrecognizedToken(token), token=Some(token))
+///|
+pub fn invalid_color_error(color : String, token : String) -> ParseError {
+  ParseError::syntax(InvalidColor(color), token~)
 }
 
-pub fn duplicate_seventh_error(token: String) -> ParseError {
-  ParseError::semantic(DuplicateSeventh, token=Some(token))
+///|
+pub fn unrecognized_token_error(token : String) -> ParseError {
+  ParseError::syntax(UnrecognizedToken(token), token~)
 }
 
-pub fn missing_bass_degree_error(token: String) -> ParseError {
-  ParseError::semantic(MissingBassDegree, token=Some(token))
+///|
+pub fn duplicate_seventh_error(token : String) -> ParseError {
+  ParseError::semantic(DuplicateSeventh, token~)
 }
 
-pub fn invalid_sus_degree_error(degree: String, token: String) -> ParseError {
-  ParseError::semantic(InvalidSusDegree(degree), token=Some(token))
+///|
+pub fn missing_bass_degree_error(token : String) -> ParseError {
+  ParseError::semantic(MissingBassDegree, token~)
+}
+
+///|
+pub fn invalid_sus_degree_error(degree : String, token : String) -> ParseError {
+  ParseError::semantic(InvalidSusDegree(degree), token~)
 }

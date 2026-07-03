@@ -10,5 +10,7 @@
     "chord",
     "notation"
   ],
-  "description": ""
+  "description": "Music chord notation DSL parser (number-degree / Nashville-style)",
+  "source": "src",
+  "preferred-target": "js"
 }

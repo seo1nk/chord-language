@@ -2,6 +2,16 @@
 
 This is a [MoonBit](https://docs.moonbitlang.com) project.
 
+## Toolchain (pinned)
+
+- moon 0.1.20260119 (be99339 2026-01-19)
+- moonbitlang/core 0.7.2 (~/.moon/lib/core, 2026-01-20)
+
+MoonBit's String API is evolving quickly (labeled arguments,
+StringView). When upgrading the toolchain, upgrade the future
+markdown.mbt fork to the same version and re-run `moon check`,
+`moon test`, and the CI Node smoke test.
+
 ## Project Structure
 
 - MoonBit packages are organized per directory, for each directory, there is a

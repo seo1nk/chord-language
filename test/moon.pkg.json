@@ -1,7 +1,0 @@
-{
-  "is_main": false,
-  "import": [
-    "seo1nk/chord_language/src"
-  ],
-  "test_import": []
-}

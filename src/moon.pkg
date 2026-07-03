@@ -1,0 +1,10 @@
+// moon.pkg — root package configuration
+
+options(
+  link: {
+    "js": {
+      "exports": [ "parse_to_json", "get_version", "health_check" ],
+      "format": "esm",
+    },
+  },
+)
