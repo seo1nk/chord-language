@@ -78,6 +78,8 @@ test "render widget html" {
   // キー select: G が selected、12 キー
   assert_true(html.contains("<option value=\"G\" selected>G</option>"))
   assert_true(html.contains("<option value=\"Bb\">B♭</option>"))
+  // 画像コピーボタン
+  assert_true(html.contains("chord-copy-img"))
 }
 
 ///|

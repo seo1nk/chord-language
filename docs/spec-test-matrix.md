@@ -350,3 +350,10 @@
 | 歌詞の N.C./空拍への割り当て（\|\| 空セルは対象外） | parser_test.mbt: "lyrics map to nc and empty beats" |
 | N.C.・空拍・歌詞の描画（ゴールデン） | renderer_test.mbt: "render nc and empty beats with lyrics" |
 | ブラウザ描画（歌詞スペース `_` 含む） | markdown.mbt フォーク e2e/chord.spec.ts: "no-chord and empty beats render with lyrics" |
+
+### 2026-07-03 更新（v1.5.2: 画像コピー）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| ウィジェットに画像コピーボタンが含まれる | transpose_test.mbt: "render widget html" |
+| クリックで PNG がクリップボードに入る・フィードバック表示・ラベル復帰 | markdown.mbt フォーク e2e/chord.spec.ts: "copy score as image button copies a PNG to clipboard" |

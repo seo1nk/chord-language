@@ -486,6 +486,8 @@ pub fn chord_css() -> String {
     #|.chord-tab { font: inherit; font-size: 0.78em; padding: 0.3em 1.1em; border: 1.5px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: transparent; color: inherit; cursor: pointer; opacity: 0.6; margin-bottom: 0; }
     #|.chord-tab--active { opacity: 1; font-weight: 600; border-color: #88888866; background: var(--chord-bg); margin-bottom: -1.5px; }
     #|.chord-key-select { font: inherit; font-size: 0.78em; margin-left: auto; align-self: center; margin-bottom: 0.25em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.05em 0.3em; }
+    #|.chord-copy-img { font: inherit; font-size: 0.72em; align-self: center; margin-left: 0.45em; margin-bottom: 0.25em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.1em 0.6em; cursor: pointer; opacity: 0.75; }
+    #|.chord-copy-img:hover { opacity: 1; }
     #|.chord-widget[data-chord-active="degree"] .chord-panel--notes { display: none; }
     #|.chord-widget[data-chord-active="notes"] .chord-panel--degree { display: none; }
     #|.chord-widget[data-chord-active="degree"] .chord-key-select { visibility: hidden; }
@@ -615,6 +617,9 @@ pub fn render_widget_html(input : String) -> String {
     )
   }
   sb.write_string("</select>")
+  sb.write_string(
+    "<button type=\"button\" class=\"chord-copy-img\" title=\"表示中の譜面を画像としてコピー\">画像コピー</button>",
+  )
   sb.write_string("</div>")
   // パネル
   sb.write_string("<div class=\"chord-panel chord-panel--degree\">")
