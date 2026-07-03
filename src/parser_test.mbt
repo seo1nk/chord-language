@@ -864,3 +864,50 @@ test "lyric line errors" {
     _ => fail("Expected OrphanLyricLine after blank")
   }
 }
+
+///|
+/// N.C.（v1.5）: NC / N.C. の両表記
+test "parse no chord" {
+  let score = parse_ok("| NC 1 | N.C. 4 |")
+  match score.lines[0].tokens[1] {
+    @chord_language.NoChord => () // OK
+    _ => fail("Expected NoChord for NC")
+  }
+  match score.lines[0].tokens[4] {
+    @chord_language.NoChord => () // OK
+    _ => fail("Expected NoChord for N.C.")
+  }
+  // JSON 出力
+  assert_true(parse_ok("NC").to_json().contains("\"type\": \"NoChord\""))
+  // NC に注釈は付けられない
+  let r = @chord_language.parse("NC@red")
+  assert_true(r.errors.length() > 0)
+}
+
+///|
+/// 空拍 _（v1.5）: スロットを占有し、空白なしでも区切られる
+test "parse empty beats" {
+  let score = parse_ok("| 1 _ _ _ |")
+  assert_eq(score.lines[0].tokens.length(), 6) // | 1 _ _ _ |
+  match score.lines[0].tokens[2] {
+    @chord_language.EmptyBeat => () // OK
+    _ => fail("Expected EmptyBeat")
+  }
+  // 空白なし区切り
+  let score2 = parse_ok("1_4")
+  assert_eq(score2.lines[0].tokens.length(), 3)
+  // JSON 出力
+  assert_true(parse_ok("1 _").to_json().contains("\"type\": \"EmptyBeat\""))
+}
+
+///|
+/// 歌詞は N.C. と空拍にも割り当たる（|| の空セルには割り当たらない）
+test "lyrics map to nc and empty beats" {
+  let score = parse_ok("| 1 _ NC % |\n> ひ か り の")
+  assert_eq(score.lines[0].lyrics.length(), 4)
+  @debug.assert_eq(score.lines[0].lyrics[1], Some("か")) // 空拍に歌詞
+  @debug.assert_eq(score.lines[0].lyrics[2], Some("り")) // N.C. に歌詞
+  // 空拍4つで1コードを4拍に伸ばして歌詞を敷く使い方
+  let score2 = parse_ok("1 _ _ _\n> ひ か り の")
+  assert_eq(score2.lines[0].lyrics.length(), 4)
+}

@@ -33,9 +33,11 @@ pub struct Line {
 /// 行の要素
 pub enum Token {
   Chord(ChordNode)
-  ChordGroup(Array[ChordNode]) // ~ で連結された同一スロットのコード列（v1.3）
+  ChordGroup(Array[ChordNode]) // - で連結された同一スロットのコード列（v1.3）
   BarLine
   Repeat // %（直前のコードの反復。v1.3）
+  NoChord // NC / N.C.（コードなし。v1.5）
+  EmptyBeat // _（空の拍。スロットを占有し歌詞を割り当てられる。v1.5）
 }
 
 ///|

@@ -90,6 +90,7 @@ pub fn parse(input : String) -> ParseResult {
       match pt.kind {
         BarTok => tokens.push(BarLine)
         RepeatTok => tokens.push(Repeat)
+        BlankTok => tokens.push(EmptyBeat)
         ChordTok => {
           // - で連結されたグループ（1 スロット複数コード、v1.3）を分割
           // （~ は v1.3.0 の旧記法。互換エイリアスとして残す）
@@ -110,6 +111,10 @@ pub fn parse(input : String) -> ParseResult {
               .with_line(line_number),
             )
             line_ok = false
+          } else if parts.length() == 1 &&
+            (pt.text == "NC" || pt.text == "N.C.") {
+            // NC / N.C.（コードなし。v1.5）
+            tokens.push(NoChord)
           } else if parts.length() == 1 {
             match parse_chord(pt.text) {
               Ok(node) => tokens.push(Chord(node))
@@ -194,7 +199,7 @@ fn count_lyric_slots(tokens : Array[Token]) -> Int {
   let mut n = 0
   for token in tokens {
     match token {
-      Chord(_) | ChordGroup(_) | Repeat => n = n + 1
+      Chord(_) | ChordGroup(_) | Repeat | NoChord | EmptyBeat => n = n + 1
       BarLine => ()
     }
   }
@@ -255,6 +260,8 @@ fn token_to_string(token : Token) -> String {
       "ChordGroup(" + nodes.map(chord_node_to_string).join("-") + ")"
     BarLine => "BarLine"
     Repeat => "Repeat"
+    NoChord => "NoChord"
+    EmptyBeat => "EmptyBeat"
   }
 }
 
@@ -407,6 +414,16 @@ fn token_to_json_value(token : Token) -> Json {
     Repeat => {
       let obj : Map[String, Json] = {}
       obj["type"] = Json::string("Repeat")
+      Json::object(obj)
+    }
+    NoChord => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("NoChord")
+      Json::object(obj)
+    }
+    EmptyBeat => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("EmptyBeat")
       Json::object(obj)
     }
   }

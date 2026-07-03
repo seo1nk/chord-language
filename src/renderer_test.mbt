@@ -114,3 +114,16 @@ test "render sections and lyrics" {
     ),
   )
 }
+
+///|
+/// N.C. と空拍の描画（歌詞つき）
+test "render nc and empty beats with lyrics" {
+  inspect(
+    @chord_language.parse_to_html(
+      "| NC 1 _ % |\n> ワン トゥー _ フォー",
+    ),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:4"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord chord-nc">N.C.<span class="chord-lyric">ワン</span></span><span class="chord-cell chord">I<span class="chord-lyric">トゥー</span></span><span class="chord-cell chord-cell--blank"></span><span class="chord-cell chord chord-repeat">%<span class="chord-lyric">フォー</span></span></div></div>
+    ),
+  )
+}

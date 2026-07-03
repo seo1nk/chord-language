@@ -210,6 +210,8 @@ pub enum Token {
   ChordGroup(Array[ChordNode])
   BarLine
   Repeat
+  NoChord
+  EmptyBeat
 }
 
 // Type aliases

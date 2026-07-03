@@ -123,9 +123,11 @@ fn chord_display_text(node : ChordNode) -> String {
 /// コードスロット（グリッドの1マス）。小節線はスロット境界の縦線として描画する
 priv enum SlotCell {
   ChordSlot(ChordNode, Bool) // (コード, 直前に小節線があるか)
-  GroupSlot(Array[ChordNode], Bool) // ~ で連結された同一スロットのコード列
+  GroupSlot(Array[ChordNode], Bool) // - で連結された同一スロットのコード列
   RepeatSlot(Bool) // %（直前のコードの反復）
-  EmptySlot(Bool) // 空小節のプレースホルダ（|| など）
+  NcSlot(Bool) // NC / N.C.（コードなし）
+  BlankSlot(Bool) // _（空の拍。歌詞を割り当てられる）
+  EmptySlot(Bool) // 空小節のプレースホルダ（|| など。歌詞は消費しない）
 }
 
 ///|
@@ -160,6 +162,16 @@ fn line_slots(tokens : Array[Token]) -> (Bool, Array[SlotCell], Bool) {
       }
       Repeat => {
         slots.push(RepeatSlot(bar_pending))
+        bar_pending = false
+        first = false
+      }
+      NoChord => {
+        slots.push(NcSlot(bar_pending))
+        bar_pending = false
+        first = false
+      }
+      EmptyBeat => {
+        slots.push(BlankSlot(bar_pending))
         bar_pending = false
         first = false
       }
@@ -256,6 +268,22 @@ fn write_line_html(
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
         sb.write_string(
           "<span class=\"chord-cell chord chord-repeat" + bar_cls + "\">%",
+        )
+        write_lyric_html(sb, lyric_of())
+        sb.write_string("</span>")
+      }
+      NcSlot(bar_before) => {
+        let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
+        sb.write_string(
+          "<span class=\"chord-cell chord chord-nc" + bar_cls + "\">N.C.",
+        )
+        write_lyric_html(sb, lyric_of())
+        sb.write_string("</span>")
+      }
+      BlankSlot(bar_before) => {
+        let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
+        sb.write_string(
+          "<span class=\"chord-cell chord-cell--blank" + bar_cls + "\">",
         )
         write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
@@ -435,6 +463,8 @@ pub fn chord_css() -> String {
     #|.chord-cell.chord-group { display: flex; align-items: baseline; column-gap: 0.5em; }
     #|.chord-cell.chord-group > .chord { flex: 1 1 0; min-width: max-content; }
     #|.chord-repeat { opacity: 0.7; }
+    #|.chord-nc { opacity: 0.85; }
+    #|.chord-cell--blank .chord-lyric { margin-top: 1.55em; }
     #|.chord-section { grid-column: 1 / -1; justify-self: start; font-size: 0.78em; font-weight: 600; letter-spacing: 0.05em; border: 1.5px solid currentColor; border-radius: 3px; padding: 0.05em 0.65em; opacity: 0.85; margin-bottom: -0.5em; }
     #|.chord-lyric { display: block; font-weight: 400; font-size: 0.72em; letter-spacing: 0; opacity: 0.88; margin-top: 0.15em; white-space: nowrap; }
     #|.chord--red { color: #d33636; }

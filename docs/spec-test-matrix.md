@@ -340,3 +340,13 @@
 | 歌詞行のエラー（断片超過・孤立: 先頭/ラベル後/空行後） | parser_test.mbt: "lyric line errors" |
 | セクション・歌詞・グループ分配・% への歌詞の描画（ゴールデン） | renderer_test.mbt: "render sections and lyrics" |
 | ブラウザ描画と移調タブでの保持 | markdown.mbt フォーク e2e/chord.spec.ts: "section labels and lyric lines render under chords" |
+
+### 2026-07-03 更新（v1.5.0: N.C.・空拍）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| NC / N.C. の両表記・JSON・注釈不可 | parser_test.mbt: "parse no chord" |
+| 空拍 `_`（スロット占有・空白なし区切り・JSON） | parser_test.mbt: "parse empty beats" |
+| 歌詞の N.C./空拍への割り当て（\|\| 空セルは対象外） | parser_test.mbt: "lyrics map to nc and empty beats" |
+| N.C.・空拍・歌詞の描画（ゴールデン） | renderer_test.mbt: "render nc and empty beats with lyrics" |
+| ブラウザ描画（歌詞スペース `_` 含む） | markdown.mbt フォーク e2e/chord.spec.ts: "no-chord and empty beats render with lyrics" |

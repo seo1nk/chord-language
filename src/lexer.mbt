@@ -4,6 +4,7 @@ priv enum PosTokenKind {
   ChordTok // コード文字列（まだパースされていない）
   BarTok // |
   RepeatTok // %（反復記号）
+  BlankTok // _（空の拍）
 }
 
 ///|
@@ -48,14 +49,19 @@ fn tokenize_line(line : String) -> Array[PosToken] {
       i = i + 1
       continue
     }
-    // コードトークン: 括弧深度を追跡し、深度 0 の空白・|・# で終了
+    if c == '_' {
+      tokens.push({ text: "_", col: i, kind: BlankTok })
+      i = i + 1
+      continue
+    }
+    // コードトークン: 括弧深度を追跡し、深度 0 の空白・|・#・%・_ で終了
     let start = i
     let sb = StringBuilder::new()
     let mut depth = 0
     while i < len {
       let tc = chars[i]
       if depth == 0 &&
-        (is_whitespace(tc) || tc == '|' || tc == '#' || tc == '%') {
+        (is_whitespace(tc) || tc == '|' || tc == '#' || tc == '%' || tc == '_') {
         break
       }
       if tc == '(' {
