@@ -4,10 +4,13 @@
 /// 基本: key C の 1 は C メジャートライアド + ベース C2
 test "playback basic chord" {
   let json = @chord_language.parse_to_playback("1", "C")
-  // ベース 36(C2) + 60(C4) 64(E4) 67(G4)
-  assert_true(json.contains("\"notes\":[36,60,64,67]"))
-  assert_true(json.contains("\"tempo\":100"))
-  assert_true(json.contains("\"totalBeats\":4")) // 1 スロット = 4 拍
+  // 上声 60(C4) 64(E4) 67(G4)、ベース 36(C2) は別トラックで拍ごとに刻む
+  assert_true(json.contains("\"notes\":[60,64,67]"))
+  assert_true(json.contains("\"note\":36"))
+  // 4/4 なら 1 スロットでベース 4 打（beat 3 の刻みがある）
+  assert_true(json.contains("\"beat\":3,\"dur\":1,\"note\":36"))
+  assert_true(json.contains("\"tempo\":120")) // 既定 BPM は 120
+  assert_true(json.contains("\"totalBeats\":4")) // 1 スロット = 1 小節（4/4 = 4 拍）
 }
 
 ///|
@@ -17,9 +20,9 @@ test "playback sustain and repeat" {
   let json = @chord_language.parse_to_playback("1 _ _ _", "C")
   assert_true(json.contains("\"dur\":16"))
   assert_true(json.contains("\"totalBeats\":16"))
-  // 1 % → 同じ音のイベント2つ
+  // 1 % → 同じ上声のイベント2つ
   let json2 = @chord_language.parse_to_playback("1 %", "C")
-  let hits = json2.split("\"notes\":[36,60,64,67]").to_array().length() - 1
+  let hits = json2.split("\"notes\":[60,64,67]").to_array().length() - 1
   assert_eq(hits, 2)
 }
 
@@ -30,9 +33,10 @@ test "playback nc silence" {
   assert_true(json.contains("\"totalBeats\":8"))
   // 最初のイベントは beat 4 から
   assert_true(json.contains("\"beat\":4"))
-  // NC _ → イベントなしの 2 拍
+  // NC _ → イベントなしの 2 スロット（ベースも無音）
   let json2 = @chord_language.parse_to_playback("NC _", "C")
   assert_true(json2.contains("\"events\":[]"))
+  assert_true(json2.contains("\"bass\":[]"))
 }
 
 ///|
@@ -47,9 +51,10 @@ test "playback group subdivision" {
 ///|
 /// キー変換・テンション・sus・スラッシュベースの音
 test "playback voicing details" {
-  // key G の 1 → G2 ベース + G4 B4 D5 = 43, 67, 71, 74
+  // key G の 1 → 上声 G4 B4 D5 = 67, 71, 74、ベース G2 = 43
   let json = @chord_language.parse_to_playback("1", "G")
-  assert_true(json.contains("\"notes\":[43,67,71,74]"))
+  assert_true(json.contains("\"notes\":[67,71,74]"))
+  assert_true(json.contains("\"note\":43"))
   // 5(b9) @ C → ルート G(67)、b9 = 67+13 = 80
   let json2 = @chord_language.parse_to_playback("5(b9)", "C")
   assert_true(json2.contains("80"))
@@ -57,9 +62,10 @@ test "playback voicing details" {
   let json3 = @chord_language.parse_to_playback("1sus4", "C")
   assert_true(json3.contains("65"))
   assert_true(!json3.contains("64"))
-  // 1/3 @ C → ベースは E2(40)
+  // 1/3 @ C → ベースは E2(40)、上声はそのまま
   let json4 = @chord_language.parse_to_playback("1/3", "C")
-  assert_true(json4.contains("\"notes\":[40,60,64,67]"))
+  assert_true(json4.contains("\"note\":40"))
+  assert_true(json4.contains("\"notes\":[60,64,67]"))
 }
 
 ///|
@@ -72,4 +78,31 @@ test "playback tempo and cursor" {
   // カーソル: cell 0 と cell 1（小節線はセルにならない）
   assert_true(json.contains("\"cell\":0"))
   assert_true(json.contains("\"cell\":1"))
+}
+
+///|
+/// 拍子（v1.7）: スロット長とベースの刻みが変わる
+test "playback time signatures" {
+  // 3/4 → 1 スロット 3 拍、ベース 3 打
+  let json = @chord_language.parse_to_playback("---\ntime: 3/4\n---\n1", "C")
+  assert_true(json.contains("\"totalBeats\":3"))
+  assert_true(json.contains("\"beat\":2,\"dur\":1,\"note\":36"))
+  assert_true(!json.contains("\"beat\":3,\"dur\":1,\"note\":36"))
+  // 6/8 → 1 スロット 3 拍（4分音符換算）、ベースは付点4分 × 2
+  let json2 = @chord_language.parse_to_playback("---\ntime: 6/8\n---\n1", "C")
+  assert_true(json2.contains("\"totalBeats\":3"))
+  assert_true(json2.contains("\"dur\":1.5,\"note\":36"))
+  // 2/2 → 1 スロット 4 拍、ベースは 2 分 × 2
+  let json3 = @chord_language.parse_to_playback("---\ntime: 2/2\n---\n1", "C")
+  assert_true(json3.contains("\"totalBeats\":4"))
+  assert_true(json3.contains("\"dur\":2,\"note\":36"))
+}
+
+///|
+/// bpm フィールド（正式名）と tempo エイリアス
+test "playback bpm field and alias" {
+  let json = @chord_language.parse_to_playback("---\nbpm: 132\n---\n1", "C")
+  assert_true(json.contains("\"tempo\":132"))
+  let json2 = @chord_language.parse_to_playback("---\ntempo: 90\n---\n1", "C")
+  assert_true(json2.contains("\"tempo\":90"))
 }

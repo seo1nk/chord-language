@@ -1,21 +1,24 @@
 ///|
 /// 再生スケジュール生成（仕様 v1.6）。
 ///
-/// 拍の解釈は「1 スロット = 1 小節（4 拍）」:
-/// - コード = 4 拍で発音
-/// - グループ（2-5）= スロットの 4 拍を等分割して順に発音（2 連結なら 2 拍ずつ）
-/// - `%` = 直前のコードを再打鍵、`_` = 直前の発音を持続（伸ばす）、N.C. = 無音
-/// - 小節線・セクション・歌詞は時間に影響しない
+/// 拍の解釈は「1 スロット = 1 小節」。小節の長さは拍子（time、既定 4/4）で決まる:
+/// - コード = 上声を 1 小節持続、ベース音は拍ごとに刻む（連打）
+/// - グループ（2-5）= 小節を等分割して順に発音
+/// - `%` = 直前のコードを再打鍵、`_` = 直前の発音を持続（ベースの刻みは継続）、N.C. = 無音
+/// - 8 分系の複合拍子（6/8, 9/8, 12/8, 3/8）のベースは付点 4 分のパルスで刻む
+/// - 小節線・セクション・歌詞は時間に影響しない。bpm は 4 分音符基準
 ///
 /// 音楽的な計算（ディグリー→MIDI・% の解決・スケジュール）はすべてここ（MoonBit 側）で行い、
 /// JS ランタイムは Web Audio の発音とカーソル表示だけを担当する（単一ソース原則）。
 
 ///|
-/// 再生イベント（発音単位）
+/// 再生イベント（上声の発音単位）
 priv struct PlayEvent {
   beat : Double
   mut dur : Double
-  notes : Array[Int] // MIDI ノート番号（ベース音を含む）
+  notes : Array[Int] // 上声の MIDI ノート番号（ベースは別トラック）
+  bass : Int // ベース音の MIDI ノート番号
+  pulse : Bool // ベースを拍ごとに刻むか（グループの細分は単発）
 }
 
 ///|
@@ -54,9 +57,9 @@ fn add_degree_interval(d : AddDegree) -> Int {
 }
 
 ///|
-/// ChordNode を MIDI ノート番号列に変換する（ベース音を含む・重複除去済み・昇順）。
+/// ChordNode を (ベース音, 上声ノート列) に変換する（上声は重複除去済み・昇順）。
 /// テンションも鳴らす（v1.6 仕様決定）。
-fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> Array[Int] {
+fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
   let acc = match node.accidental {
     Some(Sharp) => 1
     Some(Flat) => -1
@@ -135,7 +138,7 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> Array[Int] {
     }
     None => root_pc
   }
-  let notes : Array[Int] = [36 + bass_pc]
+  let notes : Array[Int] = []
   for i in intervals {
     notes.push(root + i)
   }
@@ -147,7 +150,7 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> Array[Int] {
       deduped.push(n)
     }
   }
-  deduped
+  (36 + bass_pc, deduped)
 }
 
 ///|
@@ -181,27 +184,57 @@ pub fn parse_to_playback(input : String, key : String) -> String {
     Some(meta) =>
       match meta.tempo {
         Some(t) => t
-        None => 100
+        None => 120
       }
-    None => 100
+    None => 120
   }
-  // 1 スロット = 4 拍（v1.6.1: 1 コードは 1 小節分鳴らす）
-  let slot_beats = 4.0
+  // 拍子（既定 4/4）から 1 スロット（= 1 小節）の長さとベースの刻みを決める。
+  // 長さの単位は 4 分音符（bpm 基準）
+  let time_sig = match result.score.meta {
+    Some(meta) =>
+      match meta.time {
+        Some(t) => t
+        None => "4/4"
+      }
+    None => "4/4"
+  }
+  let (ts_num, ts_den) = match time_sig.find("/") {
+    Some(slash) => {
+      let n = time_sig.unsafe_substring(start=0, end=slash)
+      let d = time_sig.unsafe_substring(start=slash + 1, end=time_sig.length())
+      let to_int = fn(x : String) -> Int {
+        let mut v = 0
+        for c in x {
+          v = v * 10 + (c.to_int() - 48)
+        }
+        v
+      }
+      (to_int(n), to_int(d))
+    }
+    None => (4, 4)
+  }
+  let slot_beats = ts_num.to_double() * 4.0 / ts_den.to_double()
+  // ベースの刻み: 8 分系の複合拍子は付点 4 分パルス、それ以外は拍子の 1 拍単位
+  let bass_unit = if ts_den == 8 && ts_num % 3 == 0 {
+    1.5
+  } else {
+    4.0 / ts_den.to_double()
+  }
   let events : Array[PlayEvent] = []
   let cursor : Array[CursorEntry] = []
   let mut beat = 0.0
   let mut cell = 0
   // 直前の発音（% の再打鍵と _ の持続に使う）
-  let mut last_notes : Array[Int]? = None
+  let mut last_voicing : (Int, Array[Int])? = None
   let mut last_event : Int? = None
   for line in result.score.lines {
     let (_, slots, _) = line_slots(line.tokens)
     for slot in slots {
       match slot {
         ChordSlot(node, _) => {
-          let notes = chord_midi_notes(node, tonic_pc)
-          events.push({ beat, dur: slot_beats, notes })
-          last_notes = Some(notes)
+          let (bass, notes) = chord_midi_notes(node, tonic_pc)
+          events.push({ beat, dur: slot_beats, notes, bass, pulse: true })
+          last_voicing = Some((bass, notes))
           last_event = Some(events.length() - 1)
           cursor.push({ beat, dur: slot_beats, cell })
           beat = beat + slot_beats
@@ -209,18 +242,24 @@ pub fn parse_to_playback(input : String, key : String) -> String {
         GroupSlot(nodes, _) => {
           let sub = slot_beats / nodes.length().to_double()
           for i, node in nodes {
-            let notes = chord_midi_notes(node, tonic_pc)
-            events.push({ beat: beat + i.to_double() * sub, dur: sub, notes })
-            last_notes = Some(notes)
+            let (bass, notes) = chord_midi_notes(node, tonic_pc)
+            events.push({
+              beat: beat + i.to_double() * sub,
+              dur: sub,
+              notes,
+              bass,
+              pulse: false,
+            })
+            last_voicing = Some((bass, notes))
             last_event = Some(events.length() - 1)
           }
           cursor.push({ beat, dur: slot_beats, cell })
           beat = beat + slot_beats
         }
         RepeatSlot(_) => {
-          match last_notes {
-            Some(notes) => {
-              events.push({ beat, dur: slot_beats, notes })
+          match last_voicing {
+            Some((bass, notes)) => {
+              events.push({ beat, dur: slot_beats, notes, bass, pulse: true })
               last_event = Some(events.length() - 1)
             }
             None => () // 直前のコードが無い % は無音
@@ -247,6 +286,22 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       cell = cell + 1
     }
   }
+  // ベーストラック: 拍ごとの刻み（pulse イベント）またはグループ細分の単発
+  let bass_hits : Array[CursorEntry] = [] // beat/dur/cell の cell をノート番号として流用
+  for ev in events {
+    if ev.pulse {
+      let mut t = ev.beat
+      while t < ev.beat + ev.dur - 0.0001 {
+        let remain = ev.beat + ev.dur - t
+        let d = if bass_unit < remain { bass_unit } else { remain }
+        bass_hits.push({ beat: t, dur: d, cell: ev.bass })
+        t = t + bass_unit
+      }
+    } else {
+      let d = if bass_unit < ev.dur { bass_unit } else { ev.dur }
+      bass_hits.push({ beat: ev.beat, dur: d, cell: ev.bass })
+    }
+  }
   let obj : Map[String, Json] = {}
   obj["tempo"] = Json::number(tempo.to_double())
   obj["totalBeats"] = Json::number(beat)
@@ -258,6 +313,15 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       e["notes"] = Json::array(
         ev.notes.map(fn(n) { Json::number(n.to_double()) }),
       )
+      Json::object(e)
+    }),
+  )
+  obj["bass"] = Json::array(
+    bass_hits.map(fn(b) {
+      let e : Map[String, Json] = {}
+      e["beat"] = Json::number(b.beat)
+      e["dur"] = Json::number(b.dur)
+      e["note"] = Json::number(b.cell.to_double())
       Json::object(e)
     }),
   )

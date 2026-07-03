@@ -17,7 +17,8 @@ pub struct SectionLabel {
 /// フロントマターのメタデータ（v1.2）
 pub struct ScoreMeta {
   key : String? // "C" | "G" | "F#" | "Bb" など（メジャーキーのみ）
-  tempo : Int? // BPM（v1.6。20-400。未指定は再生側の既定値 100）
+  tempo : Int? // BPM・4分音符基準（v1.6/v1.7。フィールド名は bpm が正式、tempo は互換。20-400。既定 120）
+  time : String? // 拍子（v1.7。"4/4" など。ホワイトリスト制。既定 4/4）
 }
 
 ///|

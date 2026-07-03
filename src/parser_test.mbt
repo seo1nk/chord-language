@@ -929,8 +929,33 @@ test "parse frontmatter tempo" {
       _ => fail("Expected InvalidTempo for " + input)
     }
   }
-  // JSON に tempo が出る
+  // JSON には bpm として出る（bpm が正式名、tempo は互換エイリアス）
   assert_true(
-    parse_ok("---\ntempo: 132\n---\n1").to_json().contains("\"tempo\": 132"),
+    parse_ok("---\nbpm: 132\n---\n1").to_json().contains("\"bpm\": 132"),
   )
+  assert_true(
+    parse_ok("---\ntempo: 132\n---\n1").to_json().contains("\"bpm\": 132"),
+  )
+}
+
+///|
+/// フロントマター time（v1.7）: ホワイトリスト制
+test "parse frontmatter time signature" {
+  match parse_ok("---\ntime: 6/8\n---\n1").meta {
+    Some(meta) => @debug.assert_eq(meta.time, Some("6/8"))
+    None => fail("Expected meta")
+  }
+  assert_true(
+    parse_ok("---\ntime: 3/4\n---\n1").to_json().contains("\"time\": \"3/4\""),
+  )
+  // ホワイトリスト外はエラー
+  for
+    input in [
+      "---\ntime: 4/5\n---\n1", "---\ntime: 13/8\n---\n1", "---\ntime: 44\n---\n1",
+    ] {
+    match single_error(input).kind {
+      @chord_language.InvalidTimeSignature(_) => () // OK
+      _ => fail("Expected InvalidTimeSignature for " + input)
+    }
+  }
 }

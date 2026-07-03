@@ -54,6 +54,7 @@ fn parse_frontmatter(
   let errors : Array[ParseError] = []
   let mut key : String? = None
   let mut tempo : Int? = None
+  let mut time : String? = None
   for idx in 1..<close_idx {
     let line = lines[idx].trim().to_owned()
     let line_no = idx + 1
@@ -76,10 +77,17 @@ fn parse_frontmatter(
           } else {
             errors.push(invalid_key_error(value, line_no))
           }
-        } else if name == "tempo" {
+        } else if name == "bpm" || name == "tempo" {
+          // bpm が正式名（v1.7）。tempo は v1.6 の互換エイリアス
           match parse_tempo_value(value) {
             Some(bpm) => tempo = Some(bpm)
             None => errors.push(invalid_tempo_error(value, line_no))
+          }
+        } else if name == "time" {
+          if is_valid_time_signature(value) {
+            time = Some(value)
+          } else {
+            errors.push(invalid_time_signature_error(value, line_no))
           }
         } else {
           errors.push(invalid_frontmatter_field_error(name, line_no))
@@ -88,7 +96,16 @@ fn parse_frontmatter(
       None => errors.push(invalid_frontmatter_field_error(line, line_no))
     }
   }
-  (Some({ key, tempo }), errors, close_idx + 1)
+  (Some({ key, tempo, time }), errors, close_idx + 1)
+}
+
+///|
+/// 拍子の検証（一般的なもののみ許可するホワイトリスト制）
+fn is_valid_time_signature(s : String) -> Bool {
+  let allowed = [
+    "1/2", "2/2", "2/4", "3/4", "4/4", "5/4", "6/4", "3/8", "6/8", "9/8", "12/8",
+  ]
+  allowed.contains(s)
 }
 
 ///|

@@ -21,6 +21,7 @@ pub enum ParseErrorKind {
   InvalidFrontmatterField(String) // 未知のフィールド（v1.2 は key のみ）
   InvalidKey(String) // 不正なキー名（A-G + 任意の #/b 以外）
   InvalidTempo(String) // 不正なテンポ（整数 20-400 以外。v1.6）
+  InvalidTimeSignature(String) // 不正な拍子（ホワイトリスト外。v1.7）
 
   // 歌詞行のエラー（v1.4）
   TooManyLyricFragments(Int, Int) // (断片数, コード数) 断片がコード数を超過
@@ -55,6 +56,7 @@ pub fn ParseError::kind_name(self : ParseError) -> String {
     InvalidFrontmatterField(_) => "InvalidFrontmatterField"
     InvalidKey(_) => "InvalidKey"
     InvalidTempo(_) => "InvalidTempo"
+    InvalidTimeSignature(_) => "InvalidTimeSignature"
     TooManyLyricFragments(_, _) => "TooManyLyricFragments"
     OrphanLyricLine => "OrphanLyricLine"
   }
@@ -81,6 +83,8 @@ pub fn ParseError::message(self : ParseError) -> String {
       "Invalid frontmatter field '\{f}' (only 'key' is allowed)"
     InvalidKey(k) => "Invalid key '\{k}' (must be A-G with optional # or b)"
     InvalidTempo(t) => "Invalid tempo '\{t}' (must be an integer 20-400)"
+    InvalidTimeSignature(t) =>
+      "Invalid time signature '\{t}' (allowed: 1/2 2/2 2/4 3/4 4/4 5/4 6/4 3/8 6/8 9/8 12/8)"
     TooManyLyricFragments(got, expected) =>
       "Too many lyric fragments (got \{got}, expected at most \{expected})"
     OrphanLyricLine => "Lyric line must directly follow a chord line"
@@ -321,4 +325,14 @@ pub fn orphan_lyric_line_error(line : Int) -> ParseError {
 ///|
 pub fn invalid_tempo_error(tempo : String, line : Int) -> ParseError {
   { kind: InvalidTempo(tempo), position: None, line: Some(line), token: None }
+}
+
+///|
+pub fn invalid_time_signature_error(time : String, line : Int) -> ParseError {
+  {
+    kind: InvalidTimeSignature(time),
+    position: None,
+    line: Some(line),
+    token: None,
+  }
 }

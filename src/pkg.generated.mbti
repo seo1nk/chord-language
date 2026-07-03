@@ -30,6 +30,8 @@ pub fn invalid_tempo_error(String, Int) -> ParseError
 
 pub fn invalid_tension_error(String, String, Int) -> ParseError
 
+pub fn invalid_time_signature_error(String, Int) -> ParseError
+
 pub fn missing_bass_degree_error(String, Int) -> ParseError
 
 pub fn orphan_lyric_line_error(Int) -> ParseError
@@ -160,6 +162,7 @@ pub enum ParseErrorKind {
   InvalidFrontmatterField(String)
   InvalidKey(String)
   InvalidTempo(String)
+  InvalidTimeSignature(String)
   TooManyLyricFragments(Int, Int)
   OrphanLyricLine
 }
@@ -187,6 +190,7 @@ pub fn ScoreAST::to_string(Self) -> String
 pub struct ScoreMeta {
   key : String?
   tempo : Int?
+  time : String?
 }
 
 pub struct SectionLabel {

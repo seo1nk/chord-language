@@ -370,3 +370,12 @@
 | tempo 反映・カーソルのセル番号 | playback_test.mbt: "playback tempo and cursor" |
 | フロントマター tempo（検証・エラー・JSON） | parser_test.mbt: "parse frontmatter tempo" |
 | ブラウザ再生（▶/■ トグル・カーソルハイライト・自動停止） | markdown.mbt フォーク e2e/chord.spec.ts: "play button starts playback..." |
+
+### 2026-07-03 更新（v1.7.0: bpm・拍子・ベース刻み）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| ベーストラック分離（上声/ベース・4/4 で 4 打・既定 BPM 120） | playback_test.mbt: "playback basic chord" |
+| 拍子によるスロット長と刻み（3/4・6/8 付点4分・2/2） | playback_test.mbt: "playback time signatures" |
+| bpm 正式名と tempo エイリアス | playback_test.mbt: "playback bpm field and alias" / parser_test.mbt: "parse frontmatter tempo" |
+| time のホワイトリスト検証（4/5・13/8・44 はエラー） | parser_test.mbt: "parse frontmatter time signature" |
