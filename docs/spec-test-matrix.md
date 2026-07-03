@@ -304,3 +304,18 @@
 - Phase 4 表示仕様（既定値 C の適用・タブ切り替え・キープルダウン移調）— 未実装のためテスト不能
 - Markdown 埋め込み（::: / ```chord / ```chord:code）— markdown.mbt フォーク側の e2e（e2e/chord.spec.ts、10 件）でカバー
 - エラーメッセージ文言の全種スナップショット — kind 検証で十分とし、文言は renderer golden の代表例のみ
+
+
+### 2026-07-03 更新（Phase 4: 実音変換・ウィジェット）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| 実音変換の基本テーブル（key C / G） | transpose_test.mbt: "transpose basic table" |
+| 異名同音スペリング（F# の 7=E#、Bb の b3=D♭、E の b6=C） | transpose_test.mbt: "transpose enharmonic spelling" |
+| 複雑なコードの変換（クオリティ・テンション・ベース・色の引き継ぎ） | transpose_test.mbt: "transpose complex chord" |
+| ウィジェット HTML（タブ・キー select・両パネル・data 属性） | transpose_test.mbt: "render widget html" |
+| key 未宣言の既定値 C | transpose_test.mbt: "widget defaults to key C" |
+| パースエラー時のウィジェットフォールバック | transpose_test.mbt: "widget falls back on parse errors" |
+| 不正キーのフォールバック | transpose_test.mbt: "notes html falls back on invalid key" |
+| SSR（md_to_html）でのウィジェット生成・互換・エラー | markdown.mbt フォーク src/chord_fence_test.mbt: "colon fence renders chord widget via md_to_html" ほか 2 件 |
+| タブ切替・プルダウン移調・既定 C（ブラウザ動作） | markdown.mbt フォーク e2e/chord.spec.ts: "tab switch shows note names in declared key" / "key pulldown transposes to any key" / "key defaults to C when frontmatter is absent" |

@@ -38,9 +38,13 @@ pub fn parse_to_html(String) -> String
 
 pub fn parse_to_json(String) -> String
 
+pub fn parse_to_notes_html(String, String) -> String
+
 pub fn render_html(ScoreAST) -> String
 
 pub fn render_result_html(String, ParseResult) -> String
+
+pub fn render_widget_html(String) -> String
 
 pub fn unclosed_frontmatter_error(Int) -> ParseError
 
