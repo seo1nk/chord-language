@@ -670,12 +670,13 @@ test "error records token field" {
 }
 
 ///|
-/// 予約トークンの現行動作の固定（|| は小節線2つ、% はエラー）
+/// 予約トークンの現行動作の固定（|| は小節線2つ。% は v1.3 で反復記号として実装済み）
 test "reserved tokens current behavior" {
   let score = parse_ok("1 || 4")
   assert_eq(score.lines[0].tokens.length(), 4) // 1, |, |, 4
-  let r = @chord_language.parse("1 %")
-  assert_eq(r.errors.length(), 1)
+  // %% は % 2つ（反復記号2つ）として解釈される（2小節リピートは将来拡張）
+  let score2 = parse_ok("1 %%")
+  assert_eq(score2.lines[0].tokens.length(), 3)
 }
 
 ///|
@@ -711,4 +712,67 @@ test "dashes mid-body are line errors" {
 test "json output includes line numbers" {
   let json = parse_ok("---\nkey: G\n---\n1 4").to_json()
   assert_true(json.contains("\"line\": 4"))
+}
+
+///|
+/// % 反復記号（v1.3）: 独立トークンとしてパースされる
+test "parse repeat marks" {
+  let score = parse_ok("1 % % | %")
+  assert_eq(score.lines[0].tokens.length(), 5)
+  match score.lines[0].tokens[1] {
+    @chord_language.Repeat => () // OK
+    _ => fail("Expected Repeat token")
+  }
+  // 空白なしでも区切られる
+  let score2 = parse_ok("1%4")
+  assert_eq(score2.lines[0].tokens.length(), 3)
+  // JSON 出力
+  let json = parse_ok("1 %").to_json()
+  assert_true(json.contains("\"type\": \"Repeat\""))
+}
+
+///|
+/// ~ グループ（v1.3）: 1 スロット複数コード
+test "parse tilde chord groups" {
+  match parse_ok("6m7 2~5").lines[0].tokens[1] {
+    @chord_language.ChordGroup(nodes) => {
+      assert_eq(nodes.length(), 2)
+      match nodes[0].degree {
+        @chord_language.D2 => () // OK
+        _ => fail("Expected degree 2")
+      }
+    }
+    _ => fail("Expected ChordGroup")
+  }
+  // 3 連結と色（個別のコードに付く）
+  match parse_ok("1~2m7~5@red").lines[0].tokens[0] {
+    @chord_language.ChordGroup(nodes) => {
+      assert_eq(nodes.length(), 3)
+      match nodes[2].color {
+        Some(@chord_language.Red) => () // OK
+        _ => fail("Expected red on third chord")
+      }
+      match nodes[0].color {
+        None => () // OK
+        _ => fail("Expected no color on first chord")
+      }
+    }
+    _ => fail("Expected ChordGroup")
+  }
+  // JSON 出力
+  let json = parse_ok("2~5").to_json()
+  assert_true(json.contains("\"type\": \"ChordGroup\""))
+  assert_true(json.contains("chords"))
+}
+
+///|
+/// ~ グループのエラー: 空パートと不正コード（位置はパート開始基準）
+test "error on invalid tilde groups" {
+  for input in ["2~", "~5", "2~~5"] {
+    let r = @chord_language.parse(input)
+    assert_true(r.errors.length() > 0)
+  }
+  // グループ内の不正コードは位置がずれて報告される: "1 2~8x" の 8x はカラム4
+  let e = single_error("1 2~8x")
+  @debug.assert_eq(e.position, Some(4))
 }

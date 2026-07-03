@@ -319,3 +319,14 @@
 | 不正キーのフォールバック | transpose_test.mbt: "notes html falls back on invalid key" |
 | SSR（md_to_html）でのウィジェット生成・互換・エラー | markdown.mbt フォーク src/chord_fence_test.mbt: "colon fence renders chord widget via md_to_html" ほか 2 件 |
 | タブ切替・プルダウン移調・既定 C（ブラウザ動作） | markdown.mbt フォーク e2e/chord.spec.ts: "tab switch shows note names in declared key" / "key pulldown transposes to any key" / "key defaults to C when frontmatter is absent" |
+
+### 2026-07-03 更新（v1.3.0: % 反復・~ グループ・レイアウト）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| % 反復記号（独立トークン・空白なし区切り・JSON） | parser_test.mbt: "parse repeat marks" |
+| ~ グループ（2/3 連結・個別色・JSON） | parser_test.mbt: "parse tilde chord groups" |
+| ~ グループのエラー（空パート・位置） | parser_test.mbt: "error on invalid tilde groups" |
+| %% の現行動作（反復記号 2 つ） | parser_test.mbt: "reserved tokens current behavior" |
+| % / ~ グループの描画（ゴールデン） | renderer_test.mbt: "render repeat and group slots" |
+| % / ~ グループのブラウザ描画と移調（key Eb で 2~5 → F/B♭） | markdown.mbt フォーク e2e/chord.spec.ts: "repeat marks and tilde groups render and transpose" |

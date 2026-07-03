@@ -32,15 +32,56 @@ pub fn parse(input : String) -> ParseResult {
     for pt in pos_tokens {
       match pt.kind {
         BarTok => tokens.push(BarLine)
-        ChordTok =>
-          match parse_chord(pt.text) {
-            Ok(node) => tokens.push(Chord(node))
-            Err(e) => {
-              // トークン内位置 → 行内位置へシフトし、行番号を付与
-              errors.push(e.shift_position(pt.col).with_line(line_number))
-              line_ok = false
+        RepeatTok => tokens.push(Repeat)
+        ChordTok => {
+          // ~ で連結されたグループ（1 スロット複数コード、v1.3）を分割
+          let parts : Array[String] = []
+          let offsets : Array[Int] = []
+          let mut off = 0
+          for v in pt.text.split("~") {
+            let part = v.to_owned()
+            parts.push(part)
+            offsets.push(off)
+            off = off + part.length() + 1
+          }
+          if parts.length() == 1 {
+            match parse_chord(pt.text) {
+              Ok(node) => tokens.push(Chord(node))
+              Err(e) => {
+                // トークン内位置 → 行内位置へシフトし、行番号を付与
+                errors.push(e.shift_position(pt.col).with_line(line_number))
+                line_ok = false
+              }
+            }
+          } else {
+            let chords : Array[ChordNode] = []
+            for i, part in parts {
+              if part.is_empty() {
+                errors.push(
+                  unrecognized_token_error(pt.text, 0)
+                  .shift_position(pt.col + offsets[i])
+                  .with_line(line_number),
+                )
+                line_ok = false
+              } else {
+                match parse_chord(part) {
+                  Ok(node) => chords.push(node)
+                  Err(e) => {
+                    errors.push(
+                      e
+                      .shift_position(pt.col + offsets[i])
+                      .with_line(line_number),
+                    )
+                    line_ok = false
+                  }
+                }
+              }
+            }
+            if line_ok {
+              tokens.push(ChordGroup(chords))
             }
           }
+        }
       }
     }
     if line_ok {
@@ -69,7 +110,10 @@ fn line_to_string(line : Line) -> String {
 fn token_to_string(token : Token) -> String {
   match token {
     Chord(node) => "Chord(" + chord_node_to_string(node) + ")"
+    ChordGroup(nodes) =>
+      "ChordGroup(" + nodes.map(chord_node_to_string).join("~") + ")"
     BarLine => "BarLine"
+    Repeat => "Repeat"
   }
 }
 
@@ -188,9 +232,20 @@ fn token_to_json_value(token : Token) -> Json {
       obj["chord"] = chord_node_to_json_value(node)
       Json::object(obj)
     }
+    ChordGroup(nodes) => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("ChordGroup")
+      obj["chords"] = Json::array(nodes.map(chord_node_to_json_value))
+      Json::object(obj)
+    }
     BarLine => {
       let obj : Map[String, Json] = {}
       obj["type"] = Json::string("BarLine")
+      Json::object(obj)
+    }
+    Repeat => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("Repeat")
       Json::object(obj)
     }
   }

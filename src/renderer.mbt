@@ -123,6 +123,8 @@ fn chord_display_text(node : ChordNode) -> String {
 /// コードスロット（グリッドの1マス）。小節線はスロット境界の縦線として描画する
 priv enum SlotCell {
   ChordSlot(ChordNode, Bool) // (コード, 直前に小節線があるか)
+  GroupSlot(Array[ChordNode], Bool) // ~ で連結された同一スロットのコード列
+  RepeatSlot(Bool) // %（直前のコードの反復）
   EmptySlot(Bool) // 空小節のプレースホルダ（|| など）
 }
 
@@ -148,6 +150,16 @@ fn line_slots(tokens : Array[Token]) -> (Bool, Array[SlotCell], Bool) {
       }
       Chord(n) => {
         slots.push(ChordSlot(n, bar_pending))
+        bar_pending = false
+        first = false
+      }
+      ChordGroup(nodes) => {
+        slots.push(GroupSlot(nodes, bar_pending))
+        bar_pending = false
+        first = false
+      }
+      Repeat => {
+        slots.push(RepeatSlot(bar_pending))
         bar_pending = false
         first = false
       }
@@ -188,6 +200,31 @@ fn write_line_html(
         )
         sb.write_string(escape_html(text_of(node)))
         sb.write_string("</span>")
+      }
+      GroupSlot(nodes, bar_before) => {
+        // 1 スロットを複数コードで共有（八分音符的な分割。左揃え）
+        let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
+        sb.write_string(
+          "<span class=\"chord-cell chord-group" + bar_cls + "\">",
+        )
+        for node in nodes {
+          let color_cls = match node.color {
+            Some(c) => " chord--" + c.to_string()
+            None => ""
+          }
+          sb.write_string("<span class=\"chord" + color_cls + "\">")
+          sb.write_string(escape_html(text_of(node)))
+          sb.write_string("</span>")
+        }
+        sb.write_string("</span>")
+      }
+      RepeatSlot(bar_before) => {
+        let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
+        sb.write_string(
+          "<span class=\"chord-cell chord chord-repeat" +
+          bar_cls +
+          "\">%</span>",
+        )
       }
       EmptySlot(bar_before) => {
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
@@ -314,13 +351,16 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
 /// リードシート風: コードは太字、小節線は縦線として描画する。
 pub fn chord_css() -> String {
   (
-    #|.chord-score { display: flex; flex-direction: column; gap: 1.35em; line-height: 1.5; padding: 0.6em 0; --chord-cols: 4; --chord-barline: 1.5px solid rgba(136, 136, 136, 0.75); }
-    #|.chord-line { display: grid; grid-template-columns: repeat(var(--chord-cols), minmax(0, 1fr)); align-items: stretch; }
-    #|.chord-cell { display: block; padding: 0.25em 0.75em; min-height: 1.4em; min-width: 0; }
+    #|.chord-score { display: grid; grid-template-columns: repeat(var(--chord-cols), minmax(max-content, 1fr)); row-gap: 1.35em; line-height: 1.5; padding: 0.6em 0; --chord-cols: 4; --chord-barline: 1.5px solid rgba(136, 136, 136, 0.75); }
+    #|.chord-line { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(var(--chord-cols), minmax(max-content, 1fr)); align-items: stretch; }
+    #|@supports (grid-template-columns: subgrid) { .chord-line { grid-template-columns: subgrid; } }
+    #|.chord-cell { display: block; padding: 0.25em 0.9em 0.25em 0.75em; min-height: 1.4em; min-width: 0; }
     #|.chord-cell--bar-before { border-left: var(--chord-barline); }
     #|.chord-line--start-bar .chord-cell:first-child { border-left: var(--chord-barline); }
     #|.chord-line--end-bar .chord-cell:last-child { border-right: var(--chord-barline); }
-    #|.chord-cell.chord { font-weight: 500; font-size: 1.06em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #|.chord-score .chord { font-weight: 500; font-size: 1.06em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; }
+    #|.chord-cell.chord-group { display: flex; align-items: baseline; column-gap: 0.6em; }
+    #|.chord-repeat { opacity: 0.7; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }
     #|.chord--green { color: #1e9e50; }

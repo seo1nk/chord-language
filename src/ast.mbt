@@ -22,7 +22,9 @@ pub struct Line {
 /// 行の要素
 pub enum Token {
   Chord(ChordNode)
+  ChordGroup(Array[ChordNode]) // ~ で連結された同一スロットのコード列（v1.3）
   BarLine
+  Repeat // %（直前のコードの反復。v1.3）
 }
 
 ///|
