@@ -4,7 +4,7 @@ test "render basic score to html" {
   inspect(
     @chord_language.parse_to_html("1 3m7 | 4M7 5"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">1</span><span class="chord-cell chord">3m7</span><span class="chord-cell chord-barline">|</span><span class="chord-cell chord">4M7</span><span class="chord-cell chord">5</span></div></div>
+      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IIIm7</span><span class="chord-cell chord-barline"></span><span class="chord-cell chord">IVM7</span><span class="chord-cell chord">V</span></div></div>
     ),
   )
 }
@@ -15,7 +15,7 @@ test "render colored chords to html" {
   inspect(
     @chord_language.parse_to_html("1@red 3m7@blue 5@green"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord chord--red">1</span><span class="chord-cell chord chord--blue">3m7</span><span class="chord-cell chord chord--green">5</span></div></div>
+      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord chord--red">I</span><span class="chord-cell chord chord--blue">IIIm7</span><span class="chord-cell chord chord--green">V</span></div></div>
     ),
   )
 }
@@ -26,7 +26,7 @@ test "render multiline score to html" {
   inspect(
     @chord_language.parse_to_html("s4M7(b5,b9)/b3 5 |\n2m7(b5) 1M7(sus4,9)"),
     content=(
-      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">s4M7(b5,b9)/b3</span><span class="chord-cell chord">5</span><span class="chord-cell chord-barline">|</span></div><div class="chord-line"><span class="chord-cell chord">2m7(b5)</span><span class="chord-cell chord">1M7(sus4,9)</span></div></div>
+      #|<div class="chord-score"><div class="chord-line"><span class="chord-cell chord">#IVM7(♭5,♭9)/♭III</span><span class="chord-cell chord">V</span><span class="chord-cell chord-barline"></span></div><div class="chord-line"><span class="chord-cell chord">IIm7(♭5)</span><span class="chord-cell chord">IM7(sus4,9)</span></div></div>
     ),
   )
 }

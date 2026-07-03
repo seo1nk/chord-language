@@ -24,7 +24,7 @@ jobs:
         run: moon check
 
       - name: moon build (js)
-        run: moon build --target js
+        run: moon build --target js --release
 
       # テスト(現状は全パスだが、Phase 3 のパーサ書き直しまでは
       # レポートモードとし、失敗しても CI は落とさない — docs/roadmap.md Phase 1 参照)
