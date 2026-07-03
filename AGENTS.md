@@ -4,11 +4,16 @@ This is a [MoonBit](https://docs.moonbitlang.com) project.
 
 ## Toolchain (pinned)
 
-- moon 0.1.20260119 (be99339 2026-01-19)
-- moonbitlang/core 0.7.2 (~/.moon/lib/core, 2026-01-20)
+- moon 0.1.20260629 (3e587ed 2026-06-29)
+- moonbitlang/core 0.10.2 (~/.moon/lib/core)
+
+Upgraded 2026-07-03 (Phase 2): upstream markdown.mbt requires the
+newer `moon.pkg` DSL alias syntax, so both repos moved to this
+toolchain together (all 29 tests re-verified green).
+A backup of the previous binaries is at ~/.moon/bin.backup-0.1.20260119.
 
 MoonBit's String API is evolving quickly (labeled arguments,
-StringView). When upgrading the toolchain, upgrade the future
+StringView). When upgrading the toolchain, upgrade the
 markdown.mbt fork to the same version and re-run `moon check`,
 `moon test`, and the CI Node smoke test.
 

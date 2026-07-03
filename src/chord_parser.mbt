@@ -176,7 +176,7 @@ fn parse_single_option(
   s : String,
   token : String,
 ) -> Result[ChordOption, ParseError] {
-  let trimmed = s.trim().to_string()
+  let trimmed = s.trim().to_owned()
 
   // b5 をチェック
   if trimmed == "b5" {
@@ -226,7 +226,7 @@ fn parse_options(
   if content.trim().is_empty() {
     return Err(empty_parentheses_error(token))
   }
-  let parts = content.split(",").map(fn(v) { v.to_string() }).to_array()
+  let parts = content.split(",").map(fn(v) { v.to_owned() }).to_array()
   let options : Array[ChordOption] = []
 
   // カンマの不正使用チェック

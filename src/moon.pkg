@@ -3,7 +3,13 @@
 options(
   link: {
     "js": {
-      "exports": [ "parse_to_json", "get_version", "health_check" ],
+      "exports": [
+        "parse_to_json",
+        "parse_to_html",
+        "chord_css",
+        "get_version",
+        "health_check",
+      ],
       "format": "esm",
     },
   },

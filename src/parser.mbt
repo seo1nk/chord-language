@@ -91,8 +91,18 @@ fn token_to_string(token : Token) -> String {
 }
 
 ///|
-/// ChordNodeを文字列に変換（デバッグ用）
+/// ChordNodeを文字列に変換（デバッグ用、色アノテーション込み）
 fn chord_node_to_string(node : ChordNode) -> String {
+  let color_str = match node.color {
+    Some(c) => "@" + c.to_string()
+    None => ""
+  }
+  chord_source_text(node) + color_str
+}
+
+///|
+/// ChordNodeをDSLソース表記のテキストに変換（色アノテーションを除く。表示用）
+fn chord_source_text(node : ChordNode) -> String {
   let acc = match node.accidental {
     Some(Sharp) => "s"
     Some(Flat) => "b"
@@ -133,11 +143,7 @@ fn chord_node_to_string(node : ChordNode) -> String {
     }
     None => ""
   }
-  let color_str = match node.color {
-    Some(c) => "@" + c.to_string()
-    None => ""
-  }
-  acc + deg + qual + sev + alt + opts + bass_str + color_str
+  acc + deg + qual + sev + alt + opts + bass_str
 }
 
 ///|

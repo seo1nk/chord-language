@@ -430,5 +430,5 @@ test "error json escapes control characters" {
   let json = @chord_language.parse_to_json("1\u{01}")
   assert_true(json.contains("\\u0001"))
   // 生の制御文字が JSON に混入していないこと
-  assert_true(not(json.contains("\u{01}")))
+  assert_true(!json.contains("\u{01}"))
 }

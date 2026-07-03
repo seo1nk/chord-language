@@ -2,6 +2,8 @@
 package "seo1nk/chord_language"
 
 // Values
+pub fn chord_css() -> String
+
 pub fn duplicate_seventh_error(String) -> ParseError
 
 pub fn empty_parentheses_error(String) -> ParseError
@@ -32,7 +34,11 @@ pub fn parse(String) -> Result[ScoreAST, ParseError]
 
 pub fn parse_chord(String) -> Result[ChordNode, ParseError]
 
+pub fn parse_to_html(String) -> String
+
 pub fn parse_to_json(String) -> String
+
+pub fn render_html(ScoreAST) -> String
 
 pub fn unmatched_parenthesis_error(String) -> ParseError
 

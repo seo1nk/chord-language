@@ -39,7 +39,7 @@ fn tokenize(input : String) -> LexResult {
     let c = chars[i]
     if is_whitespace(c) {
       // 空白文字：現在のトークンを確定
-      if not(current_token.is_empty()) {
+      if !current_token.is_empty() {
         tokens.push(ChordToken(current_token.to_string()))
         current_token.reset()
       }
@@ -50,7 +50,7 @@ fn tokenize(input : String) -> LexResult {
       continue
     } else if is_newline(c) {
       // 改行：現在のトークンを確定してLineBreakを追加
-      if not(current_token.is_empty()) {
+      if !current_token.is_empty() {
         tokens.push(ChordToken(current_token.to_string()))
         current_token.reset()
       }
@@ -58,7 +58,7 @@ fn tokenize(input : String) -> LexResult {
       i = i + 1
     } else if is_barline(c) {
       // バーライン：現在のトークンを確定してBarLineTokenを追加
-      if not(current_token.is_empty()) {
+      if !current_token.is_empty() {
         tokens.push(ChordToken(current_token.to_string()))
         current_token.reset()
       }
@@ -71,7 +71,7 @@ fn tokenize(input : String) -> LexResult {
     }
   }
   // 最後のトークンを確定
-  if not(current_token.is_empty()) {
+  if !current_token.is_empty() {
     tokens.push(ChordToken(current_token.to_string()))
   }
   { tokens, }
