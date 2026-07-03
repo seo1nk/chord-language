@@ -30,6 +30,8 @@ pub fn invalid_tension_error(String, String, Int) -> ParseError
 
 pub fn missing_bass_degree_error(String, Int) -> ParseError
 
+pub fn orphan_lyric_line_error(Int) -> ParseError
+
 pub fn parse(String) -> ParseResult
 
 pub fn parse_chord(String) -> Result[ChordNode, ParseError]
@@ -45,6 +47,8 @@ pub fn render_html(ScoreAST) -> String
 pub fn render_result_html(String, ParseResult) -> String
 
 pub fn render_widget_html(String) -> String
+
+pub fn too_many_lyric_fragments_error(Int, Int, Int) -> ParseError
 
 pub fn unclosed_frontmatter_error(Int) -> ParseError
 
@@ -120,6 +124,7 @@ pub fn Degree::to_string(Self) -> String
 pub struct Line {
   line_number : Int
   tokens : Array[Token]
+  mut lyrics : Array[String?]
 }
 
 pub struct ParseError {
@@ -150,6 +155,8 @@ pub enum ParseErrorKind {
   UnclosedFrontmatter
   InvalidFrontmatterField(String)
   InvalidKey(String)
+  TooManyLyricFragments(Int, Int)
+  OrphanLyricLine
 }
 
 pub struct ParseResult {
@@ -165,6 +172,7 @@ pub enum Quality {
 
 pub struct ScoreAST {
   meta : ScoreMeta?
+  sections : Array[SectionLabel]
   lines : Array[Line]
 }
 pub fn ScoreAST::to_json(Self) -> String
@@ -173,6 +181,11 @@ pub fn ScoreAST::to_string(Self) -> String
 
 pub struct ScoreMeta {
   key : String?
+}
+
+pub struct SectionLabel {
+  line_number : Int
+  name : String
 }
 
 pub enum Seventh {

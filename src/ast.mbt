@@ -2,7 +2,15 @@
 /// 楽譜
 pub struct ScoreAST {
   meta : ScoreMeta? // フロントマター（宣言時のみ Some。key 未宣言時の既定値 C は表示層が適用）
+  sections : Array[SectionLabel] // セクションラベル（v1.4。行番号順）
   lines : Array[Line]
+}
+
+///|
+/// セクションラベル（v1.4。`[Aメロ]` のような単独行）
+pub struct SectionLabel {
+  line_number : Int
+  name : String
 }
 
 ///|
@@ -16,6 +24,9 @@ pub struct ScoreMeta {
 pub struct Line {
   line_number : Int // 元ソースの行番号（1-indexed。空行・コメント行・フロントマターを含めて数える）
   tokens : Array[Token]
+  // ペア歌詞行（v1.4）: コード系トークン（Chord/ChordGroup/Repeat）に左から
+  // 割り当てられた歌詞断片。None = そのコードには歌詞なし。空配列 = 歌詞行なし
+  mut lyrics : Array[String?]
 }
 
 ///|

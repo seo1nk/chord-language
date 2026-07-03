@@ -101,3 +101,16 @@ test "render repeat and group slots" {
     ),
   )
 }
+
+///|
+/// セクションラベルと歌詞の描画（グループへの - 分配・% への歌詞含む）
+test "render sections and lyrics" {
+  inspect(
+    @chord_language.parse_to_html(
+      "[Aメロ]\n| 1M7 % | 2-5 |\n> ひかりの _ この-みち",
+    ),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:3"><div class="chord-section">Aメロ</div><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">IM7<span class="chord-lyric">ひかりの</span></span><span class="chord-cell chord chord-repeat">%</span><span class="chord-cell chord-group chord-cell--bar-before"><span class="chord">II<span class="chord-lyric">この</span></span><span class="chord">V<span class="chord-lyric">みち</span></span></span></div></div>
+    ),
+  )
+}

@@ -21,8 +21,65 @@ pub fn parse(input : String) -> ParseResult {
     errors.push(e)
   }
   let lines : Array[Line] = []
+  let sections : Array[SectionLabel] = []
   for idx in body_start..<all_lines.length() {
     let line_number = idx + 1 // 1-indexed
+    let raw = all_lines[idx]
+    let trimmed = raw.trim().to_owned()
+
+    // 歌詞行（v1.4）: > で始まる行は直前のコード行への歌詞割り当て
+    if trimmed.has_prefix(">") {
+      let fragments = parse_lyric_fragments(trimmed)
+      // 直前の「ソース上の前の行」がパース済みのコード行であること
+      let attached = if lines.length() > 0 &&
+        lines[lines.length() - 1].line_number == line_number - 1 {
+        let target = lines[lines.length() - 1]
+        let slot_count = count_lyric_slots(target.tokens)
+        if fragments.length() > slot_count {
+          errors.push(
+            too_many_lyric_fragments_error(
+              fragments.length(),
+              slot_count,
+              line_number,
+            ),
+          )
+        }
+        // 超過分は切り捨てて先頭から割り当てる（コード行の描画は維持）
+        let assigned : Array[String?] = []
+        for i in 0..<slot_count {
+          if i < fragments.length() {
+            assigned.push(fragments[i])
+          } else {
+            assigned.push(None)
+          }
+        }
+        target.lyrics = assigned
+        true
+      } else {
+        false
+      }
+      if !attached {
+        errors.push(orphan_lyric_line_error(line_number))
+      }
+      continue
+    }
+
+    // セクションラベル（v1.4）: [名前] の単独行（# 以降のコメントは除去）
+    let content = match raw.find("#") {
+      Some(hash_idx) => raw.unsafe_substring(start=0, end=hash_idx)
+      None => raw
+    }
+    let label_candidate = content.trim().to_owned()
+    if label_candidate.length() >= 2 &&
+      label_candidate.has_prefix("[") &&
+      label_candidate.has_suffix("]") {
+      let name = label_candidate
+        .unsafe_substring(start=1, end=label_candidate.length() - 1)
+        .trim()
+        .to_owned()
+      sections.push({ line_number, name })
+      continue
+    }
     let pos_tokens = tokenize_line(all_lines[idx])
     if pos_tokens.length() == 0 {
       continue
@@ -94,10 +151,54 @@ pub fn parse(input : String) -> ParseResult {
       }
     }
     if line_ok {
-      lines.push({ line_number, tokens })
+      lines.push({ line_number, tokens, lyrics: [] })
     }
   }
-  { score: { meta, lines }, errors }
+  { score: { meta, sections, lines }, errors }
+}
+
+///|
+/// 歌詞行（> ...）を断片に分割する。
+/// - 空白区切り。断片中の `_` は表示上のスペース、`_` 単独は「歌詞なし」
+/// - 歌詞は自由テキストであり、# はコメントにならない
+fn parse_lyric_fragments(trimmed : String) -> Array[String?] {
+  // 先頭の > を除去
+  let body = trimmed.unsafe_substring(start=1, end=trimmed.length())
+  let fragments : Array[String?] = []
+  let sb = StringBuilder::new()
+  let flush = fn() {
+    if !sb.is_empty() {
+      let frag = sb.to_string()
+      sb.reset()
+      if frag == "_" {
+        fragments.push(None)
+      } else {
+        fragments.push(Some(frag.replace_all(old="_", new=" ")))
+      }
+    }
+  }
+  for c in body {
+    if is_whitespace(c) {
+      flush()
+    } else {
+      sb.write_char(c)
+    }
+  }
+  flush()
+  fragments
+}
+
+///|
+/// 歌詞を割り当てられるスロット数（Chord / ChordGroup / Repeat の数）
+fn count_lyric_slots(tokens : Array[Token]) -> Int {
+  let mut n = 0
+  for token in tokens {
+    match token {
+      Chord(_) | ChordGroup(_) | Repeat => n = n + 1
+      BarLine => ()
+    }
+  }
+  n
 }
 
 ///|
@@ -251,6 +352,16 @@ pub fn ScoreAST::to_json_value(self : ScoreAST) -> Json {
     }
     None => ()
   }
+  if self.sections.length() > 0 {
+    obj["sections"] = Json::array(
+      self.sections.map(fn(sec) {
+        let so : Map[String, Json] = {}
+        so["line"] = Json::number(sec.line_number.to_double())
+        so["name"] = Json::string(sec.name)
+        Json::object(so)
+      }),
+    )
+  }
   obj["lines"] = Json::array(self.lines.map(line_to_json_value))
   Json::object(obj)
 }
@@ -260,6 +371,16 @@ fn line_to_json_value(line : Line) -> Json {
   let obj : Map[String, Json] = {}
   obj["line"] = Json::number(line.line_number.to_double())
   obj["tokens"] = Json::array(line.tokens.map(token_to_json_value))
+  if line.lyrics.length() > 0 {
+    obj["lyrics"] = Json::array(
+      line.lyrics.map(fn(frag) {
+        match frag {
+          Some(t) => Json::string(t)
+          None => Json::null()
+        }
+      }),
+    )
+  }
   Json::object(obj)
 }
 

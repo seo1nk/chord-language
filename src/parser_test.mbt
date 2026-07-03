@@ -786,3 +786,81 @@ test "error on invalid dash groups" {
   let e = single_error("1 2-8x")
   @debug.assert_eq(e.position, Some(4))
 }
+
+///|
+/// セクションラベル（v1.4）: [名前] の単独行
+test "parse section labels" {
+  let score = parse_ok(
+    "[Aメロ]\n| 1M7 % |\n\n[サビ] # コメント可\n| 4M7 5 |",
+  )
+  assert_eq(score.sections.length(), 2)
+  assert_eq(score.sections[0].name, "Aメロ")
+  assert_eq(score.sections[0].line_number, 1)
+  assert_eq(score.sections[1].name, "サビ")
+  assert_eq(score.sections[1].line_number, 4)
+  // JSON 出力
+  let json = score.to_json()
+  assert_true(json.contains("sections"))
+  assert_true(json.contains("Aメロ"))
+  // [A] 1 4 のように後続トークンがある行はラベルではない（行エラー）
+  let r = @chord_language.parse("[A] 1 4")
+  assert_true(r.errors.length() > 0)
+}
+
+///|
+/// 歌詞行（v1.4）: > で始まる行がコードに左から割り当たる
+test "parse lyric lines" {
+  let score = parse_ok(
+    "| 1M7 % | 4M7 5 |\n> ひかりの _ さきへ ゆこう",
+  )
+  let line = score.lines[0]
+  assert_eq(line.lyrics.length(), 4)
+  @debug.assert_eq(line.lyrics[0], Some("ひかりの"))
+  @debug.assert_eq(line.lyrics[1], None) // _ 単独 = 歌詞なし
+  @debug.assert_eq(line.lyrics[2], Some("さきへ"))
+  @debug.assert_eq(line.lyrics[3], Some("ゆこう"))
+  // 断片中の _ はスペースになる
+  let score2 = parse_ok("1 4\n> sweet_home yeah")
+  @debug.assert_eq(score2.lines[0].lyrics[0], Some("sweet home"))
+  // 断片が足りない分は歌詞なし
+  let score3 = parse_ok("1 4 5\n> ひとつ")
+  assert_eq(score3.lines[0].lyrics.length(), 3)
+  @debug.assert_eq(score3.lines[0].lyrics[1], None)
+  // 歌詞行では # はコメントにならない
+  let score4 = parse_ok("1\n> #1")
+  @debug.assert_eq(score4.lines[0].lyrics[0], Some("#1"))
+  // JSON 出力
+  assert_true(parse_ok("1\n> ラ").to_json().contains("lyrics"))
+}
+
+///|
+/// 歌詞行のエラー（v1.4）
+test "lyric line errors" {
+  // 断片超過: エラーになるがコード行の描画は維持される
+  let r1 = @chord_language.parse("1 4\n> あ い う")
+  assert_eq(r1.errors.length(), 1)
+  match r1.errors[0].kind {
+    @chord_language.TooManyLyricFragments(3, 2) => () // OK
+    _ => fail("Expected TooManyLyricFragments(3,2)")
+  }
+  assert_eq(r1.score.lines.length(), 1)
+  assert_eq(r1.score.lines[0].lyrics.length(), 2) // 先頭から割り当て
+  // 孤立した歌詞行（直前がコード行でない）
+  let r2 = @chord_language.parse("> あ")
+  match r2.errors[0].kind {
+    @chord_language.OrphanLyricLine => () // OK
+    _ => fail("Expected OrphanLyricLine")
+  }
+  // ラベル行の直後もコード行ではないので孤立
+  let r3 = @chord_language.parse("1 4\n[A]\n> あ")
+  match r3.errors[0].kind {
+    @chord_language.OrphanLyricLine => () // OK
+    _ => fail("Expected OrphanLyricLine after section")
+  }
+  // 空行を挟んだ場合も孤立（直後の行のみ）
+  let r4 = @chord_language.parse("1 4\n\n> あ")
+  match r4.errors[0].kind {
+    @chord_language.OrphanLyricLine => () // OK
+    _ => fail("Expected OrphanLyricLine after blank")
+  }
+}

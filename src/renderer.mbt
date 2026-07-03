@@ -187,6 +187,17 @@ fn write_line_html(
     cls = cls + " chord-line--end-bar"
   }
   sb.write_string("<div class=\"" + cls + "\">")
+  // 歌詞断片をスロット順に取り出すカーソル（空スロットは消費しない）
+  let mut lyric_idx = 0
+  let lyric_of = fn() -> String? {
+    let frag = if lyric_idx < line.lyrics.length() {
+      line.lyrics[lyric_idx]
+    } else {
+      None
+    }
+    lyric_idx = lyric_idx + 1
+    frag
+  }
   for slot in slots {
     match slot {
       ChordSlot(node, bar_before) => {
@@ -199,6 +210,7 @@ fn write_line_html(
           "<span class=\"chord-cell chord" + color_cls + bar_cls + "\">",
         )
         sb.write_string(escape_html(text_of(node)))
+        write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
       }
       GroupSlot(nodes, bar_before) => {
@@ -207,13 +219,35 @@ fn write_line_html(
         sb.write_string(
           "<span class=\"chord-cell chord-group" + bar_cls + "\">",
         )
-        for node in nodes {
+        // 歌詞断片が - でグループ数どおりに分割できる場合は各コードに配る
+        let member_lyrics : Array[String?] = []
+        match lyric_of() {
+          Some(text) => {
+            let parts = text.split("-").map(fn(v) { v.to_owned() }).to_array()
+            if parts.length() == nodes.length() {
+              for part in parts {
+                member_lyrics.push(Some(part))
+              }
+            } else {
+              member_lyrics.push(Some(text))
+              for _i in 1..<nodes.length() {
+                member_lyrics.push(None)
+              }
+            }
+          }
+          None =>
+            for _i in 0..<nodes.length() {
+              member_lyrics.push(None)
+            }
+        }
+        for i, node in nodes {
           let color_cls = match node.color {
             Some(c) => " chord--" + c.to_string()
             None => ""
           }
           sb.write_string("<span class=\"chord" + color_cls + "\">")
           sb.write_string(escape_html(text_of(node)))
+          write_lyric_html(sb, member_lyrics[i])
           sb.write_string("</span>")
         }
         sb.write_string("</span>")
@@ -221,10 +255,10 @@ fn write_line_html(
       RepeatSlot(bar_before) => {
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
         sb.write_string(
-          "<span class=\"chord-cell chord chord-repeat" +
-          bar_cls +
-          "\">%</span>",
+          "<span class=\"chord-cell chord chord-repeat" + bar_cls + "\">%",
         )
+        write_lyric_html(sb, lyric_of())
+        sb.write_string("</span>")
       }
       EmptySlot(bar_before) => {
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
@@ -234,6 +268,27 @@ fn write_line_html(
       }
     }
   }
+  sb.write_string("</div>")
+}
+
+///|
+/// 歌詞断片をコードの下に書き出す（None は何も出さない）
+fn write_lyric_html(sb : StringBuilder, frag : String?) -> Unit {
+  match frag {
+    Some(text) => {
+      sb.write_string("<span class=\"chord-lyric\">")
+      sb.write_string(escape_html(text))
+      sb.write_string("</span>")
+    }
+    None => ()
+  }
+}
+
+///|
+/// セクションラベルを書き出す
+fn write_section_html(sb : StringBuilder, sec : SectionLabel) -> Unit {
+  sb.write_string("<div class=\"chord-section\">")
+  sb.write_string(escape_html(sec.name))
   sb.write_string("</div>")
 }
 
@@ -283,8 +338,18 @@ fn render_score_html(ast : ScoreAST, text_of : (ChordNode) -> String) -> String 
     cols.to_string() +
     "\">",
   )
+  let mut si = 0
   for line in ast.lines {
+    while si < ast.sections.length() &&
+          ast.sections[si].line_number < line.line_number {
+      write_section_html(sb, ast.sections[si])
+      si = si + 1
+    }
     write_line_html(sb, line, text_of)
+  }
+  while si < ast.sections.length() {
+    write_section_html(sb, ast.sections[si])
+    si = si + 1
   }
   sb.write_string("</div>")
   sb.to_string()
@@ -320,6 +385,10 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
       None => global_errors.push(e)
     }
   }
+  let section_map : Map[Int, SectionLabel] = {}
+  for sec in result.score.sections {
+    section_map[sec.line_number] = sec
+  }
   let src_lines = split_lines(input)
   let cols = score_measure_cols(result.score)
   let sb = StringBuilder::new()
@@ -333,6 +402,10 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
   }
   for idx in 0..<src_lines.length() {
     let line_no = idx + 1
+    match section_map.get(line_no) {
+      Some(sec) => write_section_html(sb, sec)
+      None => ()
+    }
     match line_map.get(line_no) {
       Some(line) => write_line_html(sb, line, chord_display_text)
       None => ()
@@ -362,6 +435,8 @@ pub fn chord_css() -> String {
     #|.chord-cell.chord-group { display: flex; align-items: baseline; column-gap: 0.5em; }
     #|.chord-cell.chord-group > .chord { flex: 1 1 0; min-width: max-content; }
     #|.chord-repeat { opacity: 0.7; }
+    #|.chord-section { grid-column: 1 / -1; justify-self: start; font-size: 0.78em; font-weight: 600; letter-spacing: 0.05em; border: 1.5px solid currentColor; border-radius: 3px; padding: 0.05em 0.65em; opacity: 0.85; margin-bottom: -0.5em; }
+    #|.chord-lyric { display: block; font-weight: 400; font-size: 0.72em; letter-spacing: 0; opacity: 0.88; margin-top: 0.15em; white-space: nowrap; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }
     #|.chord--green { color: #1e9e50; }

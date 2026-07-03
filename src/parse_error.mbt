@@ -20,6 +20,10 @@ pub enum ParseErrorKind {
   UnclosedFrontmatter // 閉じの --- が無い
   InvalidFrontmatterField(String) // 未知のフィールド（v1.2 は key のみ）
   InvalidKey(String) // 不正なキー名（A-G + 任意の #/b 以外）
+
+  // 歌詞行のエラー（v1.4）
+  TooManyLyricFragments(Int, Int) // (断片数, コード数) 断片がコード数を超過
+  OrphanLyricLine // 直前の行がコード行でない歌詞行
 }
 
 ///|
@@ -49,6 +53,8 @@ pub fn ParseError::kind_name(self : ParseError) -> String {
     UnclosedFrontmatter => "UnclosedFrontmatter"
     InvalidFrontmatterField(_) => "InvalidFrontmatterField"
     InvalidKey(_) => "InvalidKey"
+    TooManyLyricFragments(_, _) => "TooManyLyricFragments"
+    OrphanLyricLine => "OrphanLyricLine"
   }
 }
 
@@ -72,6 +78,9 @@ pub fn ParseError::message(self : ParseError) -> String {
     InvalidFrontmatterField(f) =>
       "Invalid frontmatter field '\{f}' (only 'key' is allowed)"
     InvalidKey(k) => "Invalid key '\{k}' (must be A-G with optional # or b)"
+    TooManyLyricFragments(got, expected) =>
+      "Too many lyric fragments (got \{got}, expected at most \{expected})"
+    OrphanLyricLine => "Lyric line must directly follow a chord line"
   }
   let token_info = match self.token {
     Some(t) => " in '\{t}'"
@@ -285,4 +294,23 @@ pub fn invalid_frontmatter_field_error(
 ///|
 pub fn invalid_key_error(key : String, line : Int) -> ParseError {
   { kind: InvalidKey(key), position: None, line: Some(line), token: None }
+}
+
+///|
+pub fn too_many_lyric_fragments_error(
+  got : Int,
+  expected : Int,
+  line : Int,
+) -> ParseError {
+  {
+    kind: TooManyLyricFragments(got, expected),
+    position: None,
+    line: Some(line),
+    token: None,
+  }
+}
+
+///|
+pub fn orphan_lyric_line_error(line : Int) -> ParseError {
+  { kind: OrphanLyricLine, position: None, line: Some(line), token: None }
 }

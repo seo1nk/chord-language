@@ -330,3 +330,13 @@
 | %% の現行動作（反復記号 2 つ） | parser_test.mbt: "reserved tokens current behavior" |
 | % / ~ グループの描画（ゴールデン） | renderer_test.mbt: "render repeat and group slots" |
 | % / ~ グループのブラウザ描画と移調（key Eb で 2~5 → F/B♭） | markdown.mbt フォーク e2e/chord.spec.ts: "repeat marks and tilde groups render and transpose" |
+
+### 2026-07-03 更新（v1.4.0: セクションラベル・歌詞行）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| セクションラベル（単独行・コメント可・行番号・JSON・非ラベル行の扱い） | parser_test.mbt: "parse section labels" |
+| 歌詞行の割り当て（`_` スキップ・`_`=スペース・不足分・#は歌詞・JSON） | parser_test.mbt: "parse lyric lines" |
+| 歌詞行のエラー（断片超過・孤立: 先頭/ラベル後/空行後） | parser_test.mbt: "lyric line errors" |
+| セクション・歌詞・グループ分配・% への歌詞の描画（ゴールデン） | renderer_test.mbt: "render sections and lyrics" |
+| ブラウザ描画と移調タブでの保持 | markdown.mbt フォーク e2e/chord.spec.ts: "section labels and lyric lines render under chords" |
