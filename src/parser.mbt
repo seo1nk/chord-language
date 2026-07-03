@@ -355,6 +355,10 @@ pub fn ScoreAST::to_json_value(self : ScoreAST) -> Json {
         Some(k) => m["key"] = Json::string(k)
         None => ()
       }
+      match meta.tempo {
+        Some(t) => m["tempo"] = Json::number(t.to_double())
+        None => ()
+      }
       obj["meta"] = Json::object(m)
     }
     None => ()

@@ -357,3 +357,16 @@
 |---|---|
 | ウィジェットに画像コピーボタンが含まれる | transpose_test.mbt: "render widget html" |
 | クリックで PNG がクリップボードに入る・フィードバック表示・ラベル復帰 | markdown.mbt フォーク e2e/chord.spec.ts: "copy score as image button copies a PNG to clipboard" |
+
+### 2026-07-03 更新（v1.6.0: 再生機能）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| 基本発音（key C の 1 = [36,60,64,67]・tempo 既定 100・totalBeats） | playback_test.mbt: "playback basic chord" |
+| `_` 持続（dur 伸長）と `%` 再打鍵 | playback_test.mbt: "playback sustain and repeat" |
+| N.C. 無音・N.C. をまたぐ持続なし | playback_test.mbt: "playback nc silence" |
+| グループ等分割（0.5 拍） | playback_test.mbt: "playback group subdivision" |
+| キー変換・テンション・sus・スラッシュベースの音 | playback_test.mbt: "playback voicing details" |
+| tempo 反映・カーソルのセル番号 | playback_test.mbt: "playback tempo and cursor" |
+| フロントマター tempo（検証・エラー・JSON） | parser_test.mbt: "parse frontmatter tempo" |
+| ブラウザ再生（▶/■ トグル・カーソルハイライト・自動停止） | markdown.mbt フォーク e2e/chord.spec.ts: "play button starts playback..." |

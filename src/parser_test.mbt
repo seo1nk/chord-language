@@ -426,7 +426,7 @@ test "frontmatter errors" {
     _ => fail("Expected InvalidKey (minor keys not in v1.2)")
   }
   // 未知のフィールド
-  let e = single_error("---\ntempo: 120\n---\n1")
+  let e = single_error("---\ncomposer: X\n---\n1")
   match e.kind {
     @chord_language.InvalidFrontmatterField(_) => () // OK
     _ => fail("Expected InvalidFrontmatterField")
@@ -910,4 +910,27 @@ test "lyrics map to nc and empty beats" {
   // 空拍4つで1コードを4拍に伸ばして歌詞を敷く使い方
   let score2 = parse_ok("1 _ _ _\n> ひ か り の")
   assert_eq(score2.lines[0].lyrics.length(), 4)
+}
+
+///|
+/// フロントマター tempo（v1.6）
+test "parse frontmatter tempo" {
+  match parse_ok("---\nkey: G\ntempo: 132\n---\n1").meta {
+    Some(meta) => @debug.assert_eq(meta.tempo, Some(132))
+    None => fail("Expected meta")
+  }
+  // 不正なテンポ
+  for
+    input in [
+      "---\ntempo: abc\n---\n1", "---\ntempo: 10\n---\n1", "---\ntempo: 999\n---\n1",
+    ] {
+    match single_error(input).kind {
+      @chord_language.InvalidTempo(_) => () // OK
+      _ => fail("Expected InvalidTempo for " + input)
+    }
+  }
+  // JSON に tempo が出る
+  assert_true(
+    parse_ok("---\ntempo: 132\n---\n1").to_json().contains("\"tempo\": 132"),
+  )
 }

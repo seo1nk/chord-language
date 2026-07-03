@@ -11,6 +11,7 @@ options(
         "parse_to_json",
         "parse_to_html",
         "parse_to_notes_html",
+        "parse_to_playback",
         "render_widget_html",
         "chord_css",
         "get_version",

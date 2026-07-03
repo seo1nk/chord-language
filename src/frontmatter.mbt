@@ -53,6 +53,7 @@ fn parse_frontmatter(
   }
   let errors : Array[ParseError] = []
   let mut key : String? = None
+  let mut tempo : Int? = None
   for idx in 1..<close_idx {
     let line = lines[idx].trim().to_owned()
     let line_no = idx + 1
@@ -75,6 +76,11 @@ fn parse_frontmatter(
           } else {
             errors.push(invalid_key_error(value, line_no))
           }
+        } else if name == "tempo" {
+          match parse_tempo_value(value) {
+            Some(bpm) => tempo = Some(bpm)
+            None => errors.push(invalid_tempo_error(value, line_no))
+          }
         } else {
           errors.push(invalid_frontmatter_field_error(name, line_no))
         }
@@ -82,5 +88,28 @@ fn parse_frontmatter(
       None => errors.push(invalid_frontmatter_field_error(line, line_no))
     }
   }
-  (Some({ key, }), errors, close_idx + 1)
+  (Some({ key, tempo }), errors, close_idx + 1)
+}
+
+///|
+/// テンポ値の検証（整数 20-400）
+fn parse_tempo_value(s : String) -> Int? {
+  if s.is_empty() {
+    return None
+  }
+  let mut n = 0
+  for c in s {
+    match c {
+      '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' =>
+        n = n * 10 + (c.to_int() - 48)
+      _ => return None
+    }
+    if n > 400 {
+      return None
+    }
+  }
+  if n < 20 {
+    return None
+  }
+  Some(n)
 }
