@@ -34,17 +34,26 @@ pub fn parse(input : String) -> ParseResult {
         BarTok => tokens.push(BarLine)
         RepeatTok => tokens.push(Repeat)
         ChordTok => {
-          // ~ で連結されたグループ（1 スロット複数コード、v1.3）を分割
-          let parts : Array[String] = []
-          let offsets : Array[Int] = []
-          let mut off = 0
-          for v in pt.text.split("~") {
-            let part = v.to_owned()
-            parts.push(part)
-            offsets.push(off)
-            off = off + part.length() + 1
+          // - で連結されたグループ（1 スロット複数コード、v1.3）を分割
+          // （~ は v1.3.0 の旧記法。互換エイリアスとして残す）
+          let (parts, offsets) = split_group_parts(pt.text)
+          // 全パートが空（"---" など区切り文字だけのトークン）は 1 つの
+          // UnrecognizedToken として報告する
+          let mut all_empty = true
+          for part in parts {
+            if !part.is_empty() {
+              all_empty = false
+              break
+            }
           }
-          if parts.length() == 1 {
+          if all_empty {
+            errors.push(
+              unrecognized_token_error(pt.text, 0)
+              .shift_position(pt.col)
+              .with_line(line_number),
+            )
+            line_ok = false
+          } else if parts.length() == 1 {
             match parse_chord(pt.text) {
               Ok(node) => tokens.push(Chord(node))
               Err(e) => {
@@ -92,6 +101,37 @@ pub fn parse(input : String) -> ParseResult {
 }
 
 ///|
+/// グループ区切り（- / ~）でトークンを分割する。括弧の内側では分割しない。
+/// 返り値: (パート列, 各パートのトークン内開始オフセット)
+fn split_group_parts(text : String) -> (Array[String], Array[Int]) {
+  let parts : Array[String] = []
+  let offsets : Array[Int] = []
+  let chars = text.to_array()
+  let sb = StringBuilder::new()
+  let mut depth = 0
+  let mut start = 0
+  for i, c in chars {
+    if depth == 0 && (c == '-' || c == '~') {
+      parts.push(sb.to_string())
+      offsets.push(start)
+      sb.reset()
+      start = i + 1
+    } else {
+      if c == '(' {
+        depth = depth + 1
+      }
+      if c == ')' && depth > 0 {
+        depth = depth - 1
+      }
+      sb.write_char(c)
+    }
+  }
+  parts.push(sb.to_string())
+  offsets.push(start)
+  (parts, offsets)
+}
+
+///|
 /// ScoreASTを文字列に変換（デバッグ用）
 pub fn ScoreAST::to_string(self : ScoreAST) -> String {
   let line_strs = self.lines.map(fn(line) { line_to_string(line) })
@@ -111,7 +151,7 @@ fn token_to_string(token : Token) -> String {
   match token {
     Chord(node) => "Chord(" + chord_node_to_string(node) + ")"
     ChordGroup(nodes) =>
-      "ChordGroup(" + nodes.map(chord_node_to_string).join("~") + ")"
+      "ChordGroup(" + nodes.map(chord_node_to_string).join("-") + ")"
     BarLine => "BarLine"
     Repeat => "Repeat"
   }

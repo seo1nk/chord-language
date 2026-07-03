@@ -732,9 +732,9 @@ test "parse repeat marks" {
 }
 
 ///|
-/// ~ グループ（v1.3）: 1 スロット複数コード
-test "parse tilde chord groups" {
-  match parse_ok("6m7 2~5").lines[0].tokens[1] {
+/// - グループ（v1.3）: 1 スロット複数コード（~ は互換エイリアス）
+test "parse dash chord groups" {
+  match parse_ok("6m7 2-5").lines[0].tokens[1] {
     @chord_language.ChordGroup(nodes) => {
       assert_eq(nodes.length(), 2)
       match nodes[0].degree {
@@ -745,7 +745,7 @@ test "parse tilde chord groups" {
     _ => fail("Expected ChordGroup")
   }
   // 3 連結と色（個別のコードに付く）
-  match parse_ok("1~2m7~5@red").lines[0].tokens[0] {
+  match parse_ok("1-2m7-5@red").lines[0].tokens[0] {
     @chord_language.ChordGroup(nodes) => {
       assert_eq(nodes.length(), 3)
       match nodes[2].color {
@@ -760,19 +760,29 @@ test "parse tilde chord groups" {
     _ => fail("Expected ChordGroup")
   }
   // JSON 出力
-  let json = parse_ok("2~5").to_json()
+  let json = parse_ok("2-5").to_json()
   assert_true(json.contains("\"type\": \"ChordGroup\""))
   assert_true(json.contains("chords"))
+  // ~ も互換エイリアスとして動く
+  match parse_ok("2~5").lines[0].tokens[0] {
+    @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
+    _ => fail("Expected ChordGroup for tilde alias")
+  }
+  // 括弧内の文字は分割されない（テンションは - を含まないが深度追跡の確認）
+  match parse_ok("1M7(b9,s11)-5").lines[0].tokens[0] {
+    @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
+    _ => fail("Expected ChordGroup")
+  }
 }
 
 ///|
-/// ~ グループのエラー: 空パートと不正コード（位置はパート開始基準）
-test "error on invalid tilde groups" {
-  for input in ["2~", "~5", "2~~5"] {
+/// - グループのエラー: 空パートと不正コード（位置はパート開始基準）
+test "error on invalid dash groups" {
+  for input in ["2-", "-5", "2--5"] {
     let r = @chord_language.parse(input)
     assert_true(r.errors.length() > 0)
   }
-  // グループ内の不正コードは位置がずれて報告される: "1 2~8x" の 8x はカラム4
-  let e = single_error("1 2~8x")
+  // グループ内の不正コードは位置がずれて報告される: "1 2-8x" の 8x はカラム4
+  let e = single_error("1 2-8x")
   @debug.assert_eq(e.position, Some(4))
 }

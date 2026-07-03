@@ -202,7 +202,7 @@ fn write_line_html(
         sb.write_string("</span>")
       }
       GroupSlot(nodes, bar_before) => {
-        // 1 スロットを複数コードで共有（八分音符的な分割。左揃え）
+        // 1 スロットを複数コードで共有し、等間隔で幅を埋める（八分音符的な拍位置の表現）
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
         sb.write_string(
           "<span class=\"chord-cell chord-group" + bar_cls + "\">",
@@ -359,7 +359,8 @@ pub fn chord_css() -> String {
     #|.chord-line--start-bar .chord-cell:first-child { border-left: var(--chord-barline); }
     #|.chord-line--end-bar .chord-cell:last-child { border-right: var(--chord-barline); }
     #|.chord-score .chord { font-weight: 500; font-size: 1.06em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; }
-    #|.chord-cell.chord-group { display: flex; align-items: baseline; column-gap: 0.6em; }
+    #|.chord-cell.chord-group { display: flex; align-items: baseline; column-gap: 0.5em; }
+    #|.chord-cell.chord-group > .chord { flex: 1 1 0; min-width: max-content; }
     #|.chord-repeat { opacity: 0.7; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }

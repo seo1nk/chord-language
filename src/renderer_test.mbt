@@ -95,7 +95,7 @@ test "render with frontmatter" {
 /// % 反復と ~ グループの描画（ユーザー実例の形）
 test "render repeat and group slots" {
   inspect(
-    @chord_language.parse_to_html("6m7 3m/5 4m 2~5 | %"),
+    @chord_language.parse_to_html("6m7 3m/5 4m 2-5 | %"),
     content=(
       #|<div class="chord-score" style="--chord-cols:5"><div class="chord-line"><span class="chord-cell chord">VIm7</span><span class="chord-cell chord">IIIm/V</span><span class="chord-cell chord">IVm</span><span class="chord-cell chord-group"><span class="chord">II</span><span class="chord">V</span></span><span class="chord-cell chord chord-repeat chord-cell--bar-before">%</span></div></div>
     ),
