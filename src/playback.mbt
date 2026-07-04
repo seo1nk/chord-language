@@ -5,8 +5,8 @@
 /// - コード = 上声を 1 小節持続、ベース音は拍ごとに刻む（連打）
 /// - グループ（2-5）= 小節を等分割して順に発音
 /// - `%` = 直前のコードを再打鍵、`_` = 直前の発音を持続（ベースの刻みは継続）、N.C. = 無音
-/// - 8 分系の複合拍子（6/8, 9/8, 12/8, 3/8）のベースは付点 4 分ごとの
-///   「ずん・ちゃ・ちゃ」（強拍にルート、続く 8 分 2 つはオクターブ上を弱く）
+/// - 8 分系の複合拍子（6/8, 9/8, 12/8, 3/8）は付点 4 分ごとの「ずん・ちゃ・ちゃ」:
+///   強拍にベースのルート、続く 8 分 2 つは上声和音の短い刻み（stabs トラック）
 /// - 小節線・セクション・歌詞は時間に影響しない。bpm は 4 分音符基準
 ///
 /// 音楽的な計算（ディグリー→MIDI・% の解決・スケジュール）はすべてここ（MoonBit 側）で行い、
@@ -36,7 +36,15 @@ priv struct BassHit {
   beat : Double
   dur : Double
   note : Int
-  gain : Double // 相対音量（強拍 1.0 / 弱拍 0.5）
+  gain : Double // 相対音量（省略なしで常に出力。現状は強拍 1.0）
+}
+
+///|
+/// 和音の短い刻み（複合拍子の「ちゃっちゃ」）
+priv struct StabHit {
+  beat : Double
+  dur : Double
+  notes : Array[Int]
 }
 
 ///|
@@ -303,21 +311,24 @@ pub fn parse_to_playback(input : String, key : String) -> String {
     }
   }
   // ベーストラック: 拍ごとの刻み（pulse イベント）またはグループ細分の単発。
-  // 複合拍子は付点 4 分のグループを「ずん・ちゃ・ちゃ」に展開する
+  // 複合拍子は付点 4 分のグループを「ずん・ちゃ・ちゃ」に展開する:
+  // ずん = ベースのルート、ちゃっちゃ = 上声和音の短い刻み（stabs）。
+  // 弱拍をベース 1 音で鳴らすと持続和音に埋もれて聞こえないため、和音で刻む
   let compound = ts_den == 8 && ts_num % 3 == 0
   let bass_hits : Array[BassHit] = []
-  let push_hits = fn(start : Double, span : Double, note : Int) {
+  let stab_hits : Array[StabHit] = []
+  let push_hits = fn(start : Double, span : Double, note : Int, notes : Array[Int]) {
     if compound {
       // ずん: グループ頭にルートを強く
       let zun_d = if span < 0.5 { span } else { 0.5 }
       bass_hits.push({ beat: start, dur: zun_d, note, gain: 1.0 })
-      // ちゃっちゃ: 続く 8 分 2 つはオクターブ上を弱く（グループ内に収まる分だけ）
+      // ちゃっちゃ: 続く 8 分 2 つは和音のスタブ（グループ内に収まる分だけ）
       for k in 1..=2 {
         let off = 0.5 * k.to_double()
         if off < span - 0.0001 {
           let remain = span - off
           let d = if remain < 0.5 { remain } else { 0.5 }
-          bass_hits.push({ beat: start + off, dur: d, note: note + 12, gain: 0.5 })
+          stab_hits.push({ beat: start + off, dur: d, notes })
         }
       }
     } else {
@@ -330,12 +341,12 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       while t < ev.beat + ev.dur - 0.0001 {
         let remain = ev.beat + ev.dur - t
         let d = if bass_unit < remain { bass_unit } else { remain }
-        push_hits(t, d, ev.bass)
+        push_hits(t, d, ev.bass, ev.notes)
         t = t + bass_unit
       }
     } else {
       let d = if bass_unit < ev.dur { bass_unit } else { ev.dur }
-      push_hits(ev.beat, d, ev.bass)
+      push_hits(ev.beat, d, ev.bass, ev.notes)
     }
   }
   let obj : Map[String, Json] = {}
@@ -359,6 +370,17 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       e["dur"] = Json::number(b.dur)
       e["note"] = Json::number(b.note.to_double())
       e["gain"] = Json::number(b.gain)
+      Json::object(e)
+    }),
+  )
+  obj["stabs"] = Json::array(
+    stab_hits.map(fn(s) {
+      let e : Map[String, Json] = {}
+      e["beat"] = Json::number(s.beat)
+      e["dur"] = Json::number(s.dur)
+      e["notes"] = Json::array(
+        s.notes.map(fn(n) { Json::number(n.to_double()) }),
+      )
       Json::object(e)
     }),
   )

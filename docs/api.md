@@ -81,6 +81,9 @@ import {
   "bass": [          // ベーストラック。拍ごとの刻み（プラッキーに発音すること）
     { "beat": 0, "dur": 1, "note": 43, "gain": 1 }   // gain = 相対音量（省略時 1）
   ],
+  "stabs": [         // 複合拍子(x/8)の弱拍 = 上声和音の短い刻み（単純拍子では空配列）
+    { "beat": 0.5, "dur": 0.5, "notes": [67, 71, 74] }
+  ],
   "cursor": [        // 再生ハイライト用。cell は表示パネル内の .chord-cell の文書順インデックス
     { "beat": 0, "dur": 4, "cell": 0 }
   ]
@@ -89,7 +92,7 @@ import {
 
 - `key` が不正な場合はフロントマターの `key`（無ければ `C`）にフォールバック
 - パースエラーのある行は再生からも除外される（`events` / `bass` / `cursor` に現れない）
-- `%` の解決・`_` の持続・N.C. の無音・グループの等分割・拍子によるスロット長とベースの刻み・複合拍子の「ずんちゃっちゃ」強弱（`gain`。[chord.md の再生仕様](./chord.md#再生仕様)）は**この関数がすべて解決済み**。呼び出し側はスケジュールをそのまま鳴らせばよい（`gain` はベース音量の乗数として反映する）
+- `%` の解決・`_` の持続・N.C. の無音・グループの等分割・拍子によるスロット長とベースの刻み・複合拍子の「ずんちゃっちゃ」（ずん = `bass`、ちゃっちゃ = `stabs`。[chord.md の再生仕様](./chord.md#再生仕様)）は**この関数がすべて解決済み**。呼び出し側はスケジュールをそのまま鳴らせばよい（`gain` はベース音量の乗数、`stabs` は持続和音より強いアタックで短く発音する）
 
 ### `chord_css(): string`
 
@@ -183,7 +186,7 @@ document.head.appendChild(style);
 |---------|------|
 | `.chord-tab` クリック | `widget.dataset.chordActive` を `"degree"` / `"notes"` に切替え、`.chord-tab--active` クラスを付け替える（パネルの表示切替は CSS が行う） |
 | `.chord-key-select` 変更 | `widget.dataset.chordKey` を更新し、`.chord-panel--notes` の innerHTML を `parse_to_notes_html(src, key)` で差し替える（再生中なら停止） |
-| `.chord-play` クリック | `parse_to_playback(src, key)` のスケジュールを Web Audio で発音（上声はサステイン、`bass` はプラッキーな刻み）。`cursor` に従い、表示中パネルの `.chord-cell`（文書順）に `.chord-cell--playing` を付けて移動。トグルで停止・完了で自動停止 |
+| `.chord-play` クリック | `parse_to_playback(src, key)` のスケジュールを Web Audio で発音（上声はサステイン、`bass` / `stabs` はプラッキーな刻み）。`cursor` に従い、表示中パネルの `.chord-cell`（文書順）に `.chord-cell--playing` を付けて移動。トグルで停止・完了で自動停止 |
 | `.chord-copy-img` クリック | 表示中パネルの `.chord-score` を PNG 化してクリップボードへ（参照実装は SVG foreignObject + canvas。`chord_css()` を画像に埋め込む） |
 
 `src` と `key` はウィジェットの data 属性から取得する（下記）。
@@ -224,5 +227,5 @@ document.head.appendChild(style);
 ## 4. 互換性の約束
 
 - `:::` ブロック内テキストの解釈は [chord.md](./chord.md)（v1.0）に従う。文法の破壊的変更はメジャーバージョンでのみ行う
-- 公開 API の関数名・引数・JSON 形状（`parse_to_json` エンベロープ、`parse_to_playback` の `bpm/totalBeats/events/bass/cursor`）と、§3.5 の DOM コントラクトは互換性の対象
+- 公開 API の関数名・引数・JSON 形状（`parse_to_json` エンベロープ、`parse_to_playback` の `bpm/totalBeats/events/bass/stabs/cursor`）と、§3.5 の DOM コントラクトは互換性の対象
 - `chord-score` 内部の細かい HTML 構造（セルの入れ子等）は互換性の対象外（スタイルは `chord_css()` を使うこと）

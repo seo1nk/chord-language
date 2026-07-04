@@ -90,15 +90,20 @@ test "playback time signatures" {
   assert_true(json.contains("\"totalBeats\":3"))
   assert_true(json.contains("\"beat\":2,\"dur\":1,\"note\":48"))
   assert_true(!json.contains("\"beat\":3,\"dur\":1,\"note\":48"))
-  // 6/8 → 1 スロット 3 拍（4分音符換算）、ベースは付点4分グループ × 2 の
-  // 「ずん・ちゃ・ちゃ」（強拍ルート + 8 分 2 つのオクターブ上・弱）
+  // 6/8 → 1 スロット 3 拍（4分音符換算）、付点4分グループ × 2 の「ずん・ちゃ・ちゃ」:
+  // ベースは強拍のルートのみ、弱拍の 8 分 2 つは上声和音のスタブ
   let json2 = @chord_language.parse_to_playback("---\ntime: 6/8\n---\n1", "C")
   assert_true(json2.contains("\"totalBeats\":3"))
   assert_true(json2.contains("\"beat\":0,\"dur\":0.5,\"note\":48,\"gain\":1"))
-  assert_true(json2.contains("\"beat\":0.5,\"dur\":0.5,\"note\":60,\"gain\":0.5"))
-  assert_true(json2.contains("\"beat\":1,\"dur\":0.5,\"note\":60,\"gain\":0.5"))
   assert_true(json2.contains("\"beat\":1.5,\"dur\":0.5,\"note\":48,\"gain\":1"))
-  assert_true(json2.contains("\"beat\":2.5,\"dur\":0.5,\"note\":60,\"gain\":0.5"))
+  assert_true(!json2.contains("\"beat\":0.5,\"dur\":0.5,\"note\"")) // 弱拍にベースは無い
+  assert_true(
+    json2.contains("\"beat\":0.5,\"dur\":0.5,\"notes\":[60,64,67]") &&
+    json2.contains("\"beat\":1,\"dur\":0.5,\"notes\":[60,64,67]") &&
+    json2.contains("\"beat\":2.5,\"dur\":0.5,\"notes\":[60,64,67]"),
+  )
+  // 単純拍子では stabs は空
+  assert_true(json.contains("\"stabs\":[]"))
   // 2/2 → 1 スロット 4 拍、ベースは 2 分 × 2
   let json3 = @chord_language.parse_to_playback("---\ntime: 2/2\n---\n1", "C")
   assert_true(json3.contains("\"totalBeats\":4"))
