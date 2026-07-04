@@ -130,9 +130,16 @@ import {
 
 ### 3.1 SSR 経路（MoonBit）
 
-1. `moon.mod.json` にパス依存を追加（フォークは本リポジトリを `chord-language/` に submodule として取り込んでいる）:
-   ```json
-   "deps": { "seo1nk/chord_language": { "path": "chord-language" } }
+1. ローカル依存は **`moon.work` ワークスペース**で解決する（moon.mod の DSL 形式はパス依存を書けないため。フォークは本リポジトリを `chord-language/` に submodule として取り込んでいる）。フォークのルートに `moon.work`:
+   ```toml
+   members = [
+     ".",
+     "./chord-language",
+   ]
+   ```
+   さらにフォークの `moon.mod` の import にバージョン付きで宣言する（ワークスペースのメンバーがこの版を満たす）:
+   ```
+   "seo1nk/chord_language@1.0.0",
    ```
 2. `src/moon.pkg` に import を追加:
    ```
@@ -208,8 +215,9 @@ document.head.appendChild(style);
 
 ### 3.6 ビルドと配信
 
-- chord-language はフォークに **git submodule**（`chord-language/`）として取り込まれており、フォークだけ clone すれば動く（`git clone --recursive`。ビルドは `pnpm run build:chord`）
-- `moon build --target js --release` → `_build/js/release/build/chord_language.js` をフォークが import する
+- chord-language はフォークに **git submodule**（`chord-language/`）として取り込まれており、フォークだけ clone すれば動く（`git clone --recursive`）
+- フォークのルートで `moon build --target js --release` を実行すると、`moon.work` ワークスペースが**両モジュールをまとめて**ビルドする。成果物はワークスペースの `_build` にモジュール名で名前空間化される: `_build/js/release/build/seo1nk/chord_language/chord_language.js`（フォークの playground はこれを import する）
+- 本リポジトリを**単体で**ビルドした場合（ワークスペース外）の成果物は従来どおり `_build/js/release/build/chord_language.js`
 - **chord-language の API を変更したら JS を再ビルドしないとプレビューに反映されない**（症状: import エラーでページ全体が壊れる／古い挙動のまま）
 - chord-language を更新したら、フォーク側で submodule のポインタを進めてコミットする（`cd chord-language && git pull && cd .. && git add chord-language`）
 
