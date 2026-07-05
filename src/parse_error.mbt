@@ -66,37 +66,40 @@ pub fn ParseError::kind_name(self : ParseError) -> String {
 /// エラーメッセージを生成
 pub fn ParseError::message(self : ParseError) -> String {
   let base_msg = match self.kind {
-    InvalidDegree(d) => "Invalid degree '\{d}' (must be 1-7)"
-    InvalidSeventh(s) => "Invalid seventh specification '\{s}'"
-    InvalidTension(t) => "Invalid tension '\{t}'"
-    UnmatchedParenthesis => "Unmatched parenthesis"
-    EmptyParentheses => "Empty parentheses are not allowed"
+    InvalidDegree(d) => "不正なディグリー '\{d}'(1〜7 で書きます)"
+    InvalidSeventh(s) => "不正なセブンス表記 '\{s}'"
+    InvalidTension(t) => "不正なテンション '\{t}'"
+    UnmatchedParenthesis => "括弧が閉じていません"
+    EmptyParentheses => "空の括弧 () は使えません"
     InvalidCommaUsage =>
-      "Invalid comma usage (leading, trailing, or consecutive commas)"
-    InvalidColor(c) => "Invalid color '\{c}' (must be blue, red, or green)"
-    UnrecognizedToken(t) => "Unrecognized token '\{t}'"
-    DuplicateSeventh => "Duplicate seventh specification"
-    MissingBassDegree => "Bass degree is required when slash is present"
-    InvalidSusDegree(d) => "Invalid sus degree '\{d}' (must be 2, 4, or 6)"
-    UnclosedFrontmatter => "Frontmatter is not closed (missing '---')"
+      "カンマの使い方が不正です(先頭・末尾・連続は不可)"
+    InvalidColor(c) => "不正な色 '\{c}'(blue / red / green のみ)"
+    UnrecognizedToken(t) => "認識できないトークン '\{t}'"
+    DuplicateSeventh => "セブンスが重複しています"
+    MissingBassDegree =>
+      "スラッシュの後にはベースのディグリーが必要です"
+    InvalidSusDegree(d) =>
+      "不正な sus ディグリー '\{d}'(2 / 4 / 6 のみ)"
+    UnclosedFrontmatter =>
+      "フロントマターが閉じていません(--- が必要)"
     InvalidFrontmatterField(f) =>
-      "Invalid frontmatter field '\{f}' (allowed: key, bpm, time)"
-    InvalidKey(k) => "Invalid key '\{k}' (must be A-G with optional # or b)"
-    InvalidTempo(t) => "Invalid tempo '\{t}' (must be an integer 20-400)"
+      "未知のフロントマターフィールド '\{f}'(key / bpm / time のみ)"
+    InvalidKey(k) => "不正なキー '\{k}'(A〜G + 任意の # / b)"
+    InvalidTempo(t) => "不正な bpm '\{t}'(20〜400 の整数)"
     InvalidTimeSignature(t) =>
-      "Invalid time signature '\{t}' (allowed: 1/2 2/2 2/4 3/4 4/4 5/4 6/4 3/8 6/8 9/8 12/8)"
+      "不正な拍子 '\{t}'(使えるのは 1/2 2/2 2/4 3/4 4/4 5/4 6/4 3/8 6/8 9/8 12/8)"
     TooManyLyricFragments(got, expected) =>
-      "Too many lyric fragments (got \{got}, expected at most \{expected})"
-    OrphanLyricLine => "Lyric line must directly follow a chord line"
+      "歌詞の断片が多すぎます(\{got} 個。割り当て先は最大 \{expected} 個)"
+    OrphanLyricLine => "歌詞行(>)は直前にコード行が必要です"
   }
   let token_info = match self.token {
-    Some(t) => " in '\{t}'"
+    Some(t) => " — '\{t}'"
     None => ""
   }
   let position_info = match (self.line, self.position) {
-    (Some(line), Some(pos)) => " at line \{line}, position \{pos}"
-    (Some(line), None) => " at line \{line}"
-    (None, Some(pos)) => " at position \{pos}"
+    (Some(line), Some(pos)) => "(\{line} 行目, 位置 \{pos})"
+    (Some(line), None) => "(\{line} 行目)"
+    (None, Some(pos)) => "(位置 \{pos})"
     (None, None) => ""
   }
   base_msg + token_info + position_info

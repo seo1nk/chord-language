@@ -37,10 +37,10 @@ fn ParserState::remaining(self : ParserState) -> String {
 }
 
 ///|
-/// アクシデンタルをパース
+/// アクシデンタルをパース（シャープは `s` と `#` の両方を受理）
 fn parse_accidental(state : ParserState) -> (ParserState, Accidental?) {
   match state.current_char() {
-    Some('s') => (state.advance(1), Some(Sharp))
+    Some('s') | Some('#') => (state.advance(1), Some(Sharp))
     Some('b') => (state.advance(1), Some(Flat))
     _ => (state, None)
   }
@@ -73,6 +73,10 @@ fn parse_quality(state : ParserState) -> (ParserState, Quality?) {
   if state.pos + 3 <= state.length && state.take(3) == "aug" {
     return (state.advance(3), Some(Augment))
   }
+  // "maj7"(メジャーセブンスの別表記)はクオリティではないので消費しない
+  if state.pos + 4 <= state.length && state.take(4) == "maj7" {
+    return (state, None)
+  }
   // "m" (1文字) をチェック
   match state.current_char() {
     Some('m') => (state.advance(1), Some(Minor))
@@ -86,6 +90,10 @@ fn parse_seventh(
   state : ParserState,
   token : String,
 ) -> Result[(ParserState, Seventh?), ParseError] {
+  // maj7 をチェック（4文字。M7 の別表記）
+  if state.pos + 4 <= state.length && state.take(4) == "maj7" {
+    return Ok((state.advance(4), Some(MajorSeventh)))
+  }
   // M7 をチェック（2文字）
   if state.pos + 2 <= state.length && state.take(2) == "M7" {
     return Ok((state.advance(2), Some(MajorSeventh)))
@@ -172,9 +180,9 @@ fn parse_tension(
   match s {
     "b9" => Ok(FlatNine)
     "9" => Ok(Nine)
-    "s9" => Ok(SharpNine)
+    "s9" | "#9" => Ok(SharpNine)
     "11" => Ok(Eleven)
-    "s11" => Ok(SharpEleven)
+    "s11" | "#11" => Ok(SharpEleven)
     "b13" => Ok(FlatThirteen)
     "13" => Ok(Thirteen)
     _ => Err(invalid_tension_error(s, token, pos))

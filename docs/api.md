@@ -180,7 +180,7 @@ document.head.appendChild(style);
 
 ### 3.4 クライアントランタイム
 
-参照実装: フォークの `playground/chord-widget.ts`（document への委譲イベントで実装しているため、ページに 1 回 `installChordWidgets()` を呼ぶだけで SSR ページ・プレビューの両方で動く）。ランタイムの責務は次の 4 つ:
+参照実装: フォークの `playground/chord-widget.ts`（document への委譲イベントで実装しているため、ページに 1 回 `installChordWidgets()` を呼ぶだけで SSR ページ・プレビューの両方で動く）。ランタイムの責務は次の 5 つ:
 
 | イベント | 処理 |
 |---------|------|
@@ -188,6 +188,7 @@ document.head.appendChild(style);
 | `.chord-key-select` 変更 | `widget.dataset.chordKey` を更新し、`.chord-panel--notes` の innerHTML を `parse_to_notes_html(src, key)` で差し替える（再生中なら停止） |
 | `.chord-play` クリック | `parse_to_playback(src, key)` のスケジュールを Web Audio で発音（上声はサステイン、`bass` / `stabs` はプラッキーな刻み）。`cursor` に従い、表示中パネルの `.chord-cell`（文書順）に `.chord-cell--playing` を付けて移動。トグルで停止・完了で自動停止 |
 | `.chord-copy-img` クリック | 表示中パネルの `.chord-score` を PNG 化してクリップボードへ（参照実装は SVG foreignObject + canvas。`chord_css()` を画像に埋め込む） |
+| `.chord-help` クリック | `widget.dataset.chordHelp` を `"open"` ⇄ 削除でトグルする（チートシートの表示切替は CSS が行う） |
 
 `src` と `key` はウィジェットの data 属性から取得する（下記）。
 
@@ -206,7 +207,9 @@ document.head.appendChild(style);
     <select class="chord-key-select">…12 キー…</select>
     <button class="chord-play">▶ 再生</button>
     <button class="chord-copy-img">画像コピー</button>
+    <button class="chord-help">?</button>
   </div>
+  <div class="chord-cheatsheet">…記法チートシート…</div>  <!-- data-chord-help="open" で表示 -->
   <div class="chord-panel chord-panel--degree"> <div class="chord-score">…</div> </div>
   <div class="chord-panel chord-panel--notes">  <div class="chord-score">…</div> </div>
 </div>

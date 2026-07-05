@@ -89,14 +89,30 @@ test "parse options with spaces inside parentheses" {
 }
 
 ///|
-/// コメント（# から行末まで）
-test "parse comments" {
-  let score = parse_ok(
-    "1 4 # イントロ\n# 行全体がコメント\n5 1 # 終止",
-  )
-  assert_eq(score.lines.length(), 2)
-  assert_eq(score.lines[0].tokens.length(), 2)
-  assert_eq(score.lines[1].line_number, 3)
+/// # はコメントではなくシャープ記号（s と等価）
+test "parse sharp with hash" {
+  let score = parse_ok("1 #4 | #1m7 4M7(b9,#11) | 3m/#4")
+  assert_eq(score.lines.length(), 1)
+  // #4 と s4 は同じ AST になる
+  assert_eq(parse_ok("#4").to_json(), parse_ok("s4").to_json())
+  // テンション #9 / #11 は s9 / s11 と等価
+  assert_eq(parse_ok("1(#9,#11)").to_json(), parse_ok("1(s9,s11)").to_json())
+  // スラッシュベースのアクシデンタルにも使える
+  assert_eq(parse_ok("3m/#4").to_json(), parse_ok("3m/s4").to_json())
+}
+
+///|
+/// maj7 は M7 の別表記（同じ AST になる）
+test "parse maj7 alias" {
+  assert_eq(parse_ok("1maj7").to_json(), parse_ok("1M7").to_json())
+  assert_eq(parse_ok("4maj7(b5)/3").to_json(), parse_ok("4M7(b5)/3").to_json())
+  // マイナーの m とは衝突しない
+  assert_eq(parse_ok("2mmaj7").to_json(), parse_ok("2mM7").to_json())
+  // 重複はエラー
+  match single_error("1maj7M7").kind {
+    @chord_language.DuplicateSeventh => () // OK
+    _ => fail("Expected DuplicateSeventh for 1maj7M7")
+  }
 }
 
 ///|
@@ -785,13 +801,11 @@ test "error on invalid dash groups" {
 ///|
 /// セクションラベル: [名前] の単独行
 test "parse section labels" {
-  let score = parse_ok(
-    "[Aメロ]\n| 1M7 % |\n\n[サビ] # コメント可\n| 4M7 5 |",
-  )
+  let score = parse_ok("[Aメロ]\n| 1M7 % |\n\n[サビ #2]\n| 4M7 5 |")
   assert_eq(score.sections.length(), 2)
   assert_eq(score.sections[0].name, "Aメロ")
   assert_eq(score.sections[0].line_number, 1)
-  assert_eq(score.sections[1].name, "サビ")
+  assert_eq(score.sections[1].name, "サビ #2") // # もラベル名の一部
   assert_eq(score.sections[1].line_number, 4)
   // JSON 出力
   let json = score.to_json()
@@ -821,7 +835,7 @@ test "parse lyric lines" {
   let score3 = parse_ok("1 4 5\n> ひとつ")
   assert_eq(score3.lines[0].lyrics.length(), 3)
   @debug.assert_eq(score3.lines[0].lyrics[1], None)
-  // 歌詞行では # はコメントにならない
+  // 歌詞は自由テキスト（# もそのまま歌詞になる）
   let score4 = parse_ok("1\n> #1")
   @debug.assert_eq(score4.lines[0].lyrics[0], Some("#1"))
   // JSON 出力

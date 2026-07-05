@@ -37,7 +37,7 @@ test "render error fallback to html" {
   inspect(
     @chord_language.parse_to_html("1 3m7\n8x 5"),
     content=(
-      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IIIm7</span></div><div class="chord-line chord-error"><span class="chord-error-msg">Invalid degree '8' (must be 1-7) in '8x' at line 2, position 0</span><pre class="chord-error-src">8x 5</pre></div></div>
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IIIm7</span></div><div class="chord-line chord-error"><span class="chord-error-msg">不正なディグリー '8'(1〜7 で書きます) — '8x'(2 行目, 位置 0)</span><pre class="chord-error-src">8x 5</pre></div></div>
     ),
   )
 }
@@ -75,7 +75,7 @@ test "render multiple errors in one line" {
   inspect(
     @chord_language.parse_to_html("1M7() b9x"),
     content=(
-      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line chord-error"><span class="chord-error-msg">Empty parentheses are not allowed in '1M7()' at line 1, position 3; Invalid degree '9' (must be 1-7) in 'b9x' at line 1, position 7</span><pre class="chord-error-src">1M7() b9x</pre></div></div>
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line chord-error"><span class="chord-error-msg">空の括弧 () は使えません — '1M7()'(1 行目, 位置 3); 不正なディグリー '9'(1〜7 で書きます) — 'b9x'(1 行目, 位置 7)</span><pre class="chord-error-src">1M7() b9x</pre></div></div>
     ),
   )
 }

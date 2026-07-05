@@ -22,7 +22,7 @@ fn is_whitespace(c : Char) -> Bool {
 
 ///|
 /// 1 行を字句解析する。
-/// - `#` から行末まではコメント
+/// - `#` はシャープ記号としてトークンの一部になる（コメント構文は無い）
 /// - 括弧 `(` `)` の内側では空白でトークンを区切らない（`1M7(b9, s11)` を 1 トークンとして扱う）
 fn tokenize_line(line : String) -> Array[PosToken] {
   let tokens : Array[PosToken] = []
@@ -34,10 +34,6 @@ fn tokenize_line(line : String) -> Array[PosToken] {
     if is_whitespace(c) {
       i = i + 1
       continue
-    }
-    if c == '#' {
-      // コメント: 行末まで無視
-      break
     }
     if c == '|' {
       tokens.push({ text: "|", col: i, kind: BarTok })
@@ -54,14 +50,14 @@ fn tokenize_line(line : String) -> Array[PosToken] {
       i = i + 1
       continue
     }
-    // コードトークン: 括弧深度を追跡し、深度 0 の空白・|・#・%・_ で終了
+    // コードトークン: 括弧深度を追跡し、深度 0 の空白・|・%・_ で終了
     let start = i
     let sb = StringBuilder::new()
     let mut depth = 0
     while i < len {
       let tc = chars[i]
       if depth == 0 &&
-        (is_whitespace(tc) || tc == '|' || tc == '#' || tc == '%' || tc == '_') {
+        (is_whitespace(tc) || tc == '|' || tc == '%' || tc == '_') {
         break
       }
       if tc == '(' {

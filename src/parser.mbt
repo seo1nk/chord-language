@@ -64,12 +64,8 @@ pub fn parse(input : String) -> ParseResult {
       continue
     }
 
-    // セクションラベル: [名前] の単独行（# 以降のコメントは除去）
-    let content = match raw.find("#") {
-      Some(hash_idx) => raw.unsafe_substring(start=0, end=hash_idx)
-      None => raw
-    }
-    let label_candidate = content.trim().to_owned()
+    // セクションラベル: [名前] の単独行
+    let label_candidate = raw.trim().to_owned()
     if label_candidate.length() >= 2 &&
       label_candidate.has_prefix("[") &&
       label_candidate.has_suffix("]") {
@@ -164,7 +160,6 @@ pub fn parse(input : String) -> ParseResult {
 ///|
 /// 歌詞行（> ...）を断片に分割する。
 /// - 空白区切り。断片中の `_` は表示上のスペース、`_` 単独は「歌詞なし」
-/// - 歌詞は自由テキストであり、# はコメントにならない
 fn parse_lyric_fragments(trimmed : String) -> Array[String?] {
   // 先頭の > を除去
   let body = trimmed.unsafe_substring(start=1, end=trimmed.length())

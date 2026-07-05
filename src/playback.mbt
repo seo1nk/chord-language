@@ -317,13 +317,18 @@ pub fn parse_to_playback(input : String, key : String) -> String {
   let compound = ts_den == 8 && ts_num % 3 == 0
   let bass_hits : Array[BassHit] = []
   let stab_hits : Array[StabHit] = []
-  let push_hits = fn(start : Double, span : Double, note : Int, notes : Array[Int]) {
+  let push_hits = fn(
+    start : Double,
+    span : Double,
+    note : Int,
+    notes : Array[Int],
+  ) {
     if compound {
       // ずん: グループ頭にルートを強く
       let zun_d = if span < 0.5 { span } else { 0.5 }
       bass_hits.push({ beat: start, dur: zun_d, note, gain: 1.0 })
       // ちゃっちゃ: 続く 8 分 2 つは和音のスタブ（グループ内に収まる分だけ）
-      for k in 1..=2 {
+      for k in 1..<=2 {
         let off = 0.5 * k.to_double()
         if off < span - 0.0001 {
           let remain = span - off
