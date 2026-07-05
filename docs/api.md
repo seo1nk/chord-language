@@ -20,6 +20,7 @@ import {
   parse_to_notes_html,
   parse_to_playback,
   render_widget_html,
+  chord_cheatsheet_html,
   chord_css,
   get_version,
   health_check,
@@ -94,6 +95,10 @@ import {
 - パースエラーのある行は再生からも除外される（`events` / `bass` / `cursor` に現れない）
 - `%` の解決・`_` の持続・N.C. の無音・グループの等分割・拍子によるスロット長とベースの刻み・複合拍子の「ずんちゃっちゃ」（ずん = `bass`、ちゃっちゃ = `stabs`。[chord.md の再生仕様](./chord.md#再生仕様)）は**この関数がすべて解決済み**。呼び出し側はスケジュールをそのまま鳴らせばよい（`gain` はベース音量の乗数、`stabs` は持続和音より強いアタックで短く発音する）
 
+### `chord_cheatsheet_html(): string`
+
+記法チートシートの HTML（`.chord-cheatsheet`。スタイルは `chord_css()` に含まれる）を返す。**埋め込み場所は呼び出し側が決める** — フォークのプレイグラウンドではエディタのヘッダの `?` ボタンから開くモーダルに表示している。末尾に 2-5-1 のコピー用スニペット（`::: … :::`）を含む。
+
 ### `chord_css(): string`
 
 表示用 CSS を返す。すべて `.chord-` プレフィックスにスコープされている。**ページに 1 回だけ** `<style>` として注入すること（ウィジェットごとに注入しない）。
@@ -112,7 +117,7 @@ import {
 |-----------|------|
 | `parse(input : String) -> ParseResult` | `ParseResult { score : ScoreAST, errors : Array[ParseError] }` |
 | `render_widget_html(input : String) -> String` | SSR で使うのは基本これだけ |
-| `parse_to_html` / `parse_to_notes_html` / `parse_to_playback` / `chord_css` | JS 版と同一 |
+| `parse_to_html` / `parse_to_notes_html` / `parse_to_playback` / `chord_cheatsheet_html` / `chord_css` | JS 版と同一 |
 | `ScoreAST` / `Line` / `Token` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応） |
 
 ---
@@ -180,7 +185,7 @@ document.head.appendChild(style);
 
 ### 3.4 クライアントランタイム
 
-参照実装: フォークの `playground/chord-widget.ts`（document への委譲イベントで実装しているため、ページに 1 回 `installChordWidgets()` を呼ぶだけで SSR ページ・プレビューの両方で動く）。ランタイムの責務は次の 5 つ:
+参照実装: フォークの `playground/chord-widget.ts`（document への委譲イベントで実装しているため、ページに 1 回 `installChordWidgets()` を呼ぶだけで SSR ページ・プレビューの両方で動く）。ランタイムの責務は次の 4 つ:
 
 | イベント | 処理 |
 |---------|------|
@@ -188,7 +193,6 @@ document.head.appendChild(style);
 | `.chord-key-select` 変更 | `widget.dataset.chordKey` を更新し、`.chord-panel--notes` の innerHTML を `parse_to_notes_html(src, key)` で差し替える（再生中なら停止） |
 | `.chord-play` クリック | `parse_to_playback(src, key)` のスケジュールを Web Audio で発音（上声はサステイン、`bass` / `stabs` はプラッキーな刻み）。`cursor` に従い、表示中パネルの `.chord-cell`（文書順）に `.chord-cell--playing` を付けて移動。トグルで停止・完了で自動停止 |
 | `.chord-copy-img` クリック | 表示中パネルの `.chord-score` を PNG 化してクリップボードへ（参照実装は SVG foreignObject + canvas。`chord_css()` を画像に埋め込む） |
-| `.chord-help` クリック | `widget.dataset.chordHelp` を `"open"` ⇄ 削除でトグルする（チートシートの表示切替は CSS が行う） |
 
 `src` と `key` はウィジェットの data 属性から取得する（下記）。
 
@@ -207,9 +211,7 @@ document.head.appendChild(style);
     <select class="chord-key-select">…12 キー…</select>
     <button class="chord-play">▶ 再生</button>
     <button class="chord-copy-img">画像コピー</button>
-    <button class="chord-help">?</button>
   </div>
-  <div class="chord-cheatsheet">…記法チートシート…</div>  <!-- data-chord-help="open" で表示 -->
   <div class="chord-panel chord-panel--degree"> <div class="chord-score">…</div> </div>
   <div class="chord-panel chord-panel--notes">  <div class="chord-score">…</div> </div>
 </div>

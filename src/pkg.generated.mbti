@@ -2,6 +2,8 @@
 package "seo1nk/chord_language"
 
 // Values
+pub fn chord_cheatsheet_html() -> String
+
 pub fn chord_css() -> String
 
 pub fn duplicate_seventh_error(String, Int) -> ParseError

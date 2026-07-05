@@ -489,30 +489,30 @@ pub fn chord_css() -> String {
     #|.chord-tab { font: inherit; font-size: 0.78em; padding: 0.3em 1.1em; border: 1.5px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: transparent; color: inherit; cursor: pointer; opacity: 0.6; margin-bottom: 0; }
     #|.chord-tab--active { opacity: 1; font-weight: 600; border-color: #88888866; background: var(--chord-bg); margin-bottom: -1.5px; }
     #|.chord-key-select { font: inherit; font-size: 0.78em; margin-left: auto; align-self: center; margin-bottom: 0.25em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.05em 0.3em; }
-    #|.chord-copy-img, .chord-play, .chord-help { font: inherit; font-size: 0.72em; align-self: center; margin-bottom: 0.25em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.1em 0.6em; cursor: pointer; opacity: 0.75; }
+    #|.chord-copy-img, .chord-play { font: inherit; font-size: 0.72em; align-self: center; margin-bottom: 0.25em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.1em 0.6em; cursor: pointer; opacity: 0.75; }
     #|.chord-play { margin-left: 0.45em; }
     #|.chord-copy-img { margin-left: 0.45em; }
-    #|.chord-help { margin-left: 0.45em; padding: 0.1em 0.5em; border-radius: 50%; }
-    #|.chord-copy-img:hover, .chord-play:hover, .chord-help:hover { opacity: 1; }
-    #|.chord-widget[data-chord-help="open"] .chord-help { opacity: 1; background: #8888883d; }
-    #|.chord-cheatsheet { display: none; font-size: 0.78em; border: 1px solid #8886; border-radius: 6px; margin-top: 0.6em; padding: 0.6em 0.9em 0.75em; grid-template-columns: max-content 1fr; column-gap: 1.1em; row-gap: 0.28em; align-items: baseline; }
-    #|.chord-widget[data-chord-help="open"] .chord-cheatsheet { display: grid; }
+    #|.chord-copy-img:hover, .chord-play:hover { opacity: 1; }
+    #|.chord-cheatsheet { display: grid; font-size: 0.78em; grid-template-columns: max-content 1fr; column-gap: 1.1em; row-gap: 0.28em; align-items: baseline; }
     #|.chord-cheatsheet code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95em; white-space: nowrap; }
     #|.chord-cheatsheet span { opacity: 0.85; }
     #|.chord-cheat-head { grid-column: 1 / -1; font-weight: 700; font-size: 0.92em; opacity: 0.75; margin-top: 0.3em; }
     #|.chord-cheat-head:first-child { margin-top: 0; }
+    #|.chord-cheat-example { grid-column: 1 / -1; margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95em; border: 1px solid #8886; border-radius: 6px; padding: 0.5em 0.8em; background: #8881; user-select: all; }
     #|.chord-cell--playing { background: #8888883d; border-radius: 5px; }
     #|.chord-widget[data-chord-active="degree"] .chord-panel--notes { display: none; }
     #|.chord-widget[data-chord-active="notes"] .chord-panel--degree { display: none; }
     #|.chord-widget[data-chord-active="degree"] .chord-key-select { visibility: hidden; }
-    #|@media print { .chord-tabs, .chord-cheatsheet { display: none; } }
+    #|@media print { .chord-tabs { display: none; } }
   )
 }
 
 ///|
-/// ウィジェットに埋め込む記法チートシート。ヘルプボタン（.chord-help）で開閉する。
+/// 記法チートシートの HTML（`.chord-cheatsheet`）を返す。
+/// 埋め込み場所は呼び出し側が決める（フォークのプレイグラウンドでは
+/// エディタのヘッダから開くモーダルに表示する）。スタイルは chord_css() に含まれる。
 /// 記法の変更時は docs/chord.md と合わせて必ず更新すること。
-fn cheatsheet_html() -> String {
+pub fn chord_cheatsheet_html() -> String {
   (
     #|<div class="chord-cheatsheet">
     #|<div class="chord-cheat-head">コード（Key 基準のディグリーで書く）</div>
@@ -534,6 +534,13 @@ fn cheatsheet_html() -> String {
     #|<code>[Aメロ]</code><span>セクションラベル（単独行）</span>
     #|<code>&gt; ひかりの _ さきへ</code><span>直前のコード行への歌詞。空白 = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース</span>
     #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）</span>
+    #|<div class="chord-cheat-head">例: 2-5-1（コピーして試してみてください）</div>
+    #|<pre class="chord-cheat-example">:::
+    #|---
+    #|key: C
+    #|---
+    #|| 2m7 5(9) | 1M7 % |
+    #|:::</pre>
     #|</div>
   )
 }
@@ -667,12 +674,7 @@ pub fn render_widget_html(input : String) -> String {
   sb.write_string(
     "<button type=\"button\" class=\"chord-copy-img\" title=\"表示中の譜面を画像としてコピー\">画像コピー</button>",
   )
-  sb.write_string(
-    "<button type=\"button\" class=\"chord-help\" title=\"記法のチートシート\" aria-label=\"記法のチートシート\">?</button>",
-  )
   sb.write_string("</div>")
-  // チートシート（.chord-help でトグル。data-chord-help="open" で表示）
-  sb.write_string(cheatsheet_html())
   // パネル
   sb.write_string("<div class=\"chord-panel chord-panel--degree\">")
   sb.write_string(degree_panel)
