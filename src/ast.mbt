@@ -141,6 +141,46 @@ pub enum ChordColor {
 }
 
 ///|
+/// フロントマターの key（未宣言・フロントマター省略時は既定値 "C"）。
+/// 既定値の適用は表示・再生層の責務で、AST は宣言の有無を保持する
+pub fn ScoreAST::key_or_default(self : ScoreAST) -> String {
+  match self.meta {
+    Some(meta) =>
+      match meta.key {
+        Some(k) => k
+        None => "C"
+      }
+    None => "C"
+  }
+}
+
+///|
+/// フロントマターの bpm（未宣言時は既定値 120）
+pub fn ScoreAST::bpm_or_default(self : ScoreAST) -> Int {
+  match self.meta {
+    Some(meta) =>
+      match meta.bpm {
+        Some(t) => t
+        None => 120
+      }
+    None => 120
+  }
+}
+
+///|
+/// フロントマターの拍子（未宣言時は既定値 "4/4"）
+pub fn ScoreAST::time_or_default(self : ScoreAST) -> String {
+  match self.meta {
+    Some(meta) =>
+      match meta.time {
+        Some(t) => t
+        None => "4/4"
+      }
+    None => "4/4"
+  }
+}
+
+///|
 pub fn Degree::from_char(c : Char) -> Degree? {
   match c {
     '1' => Some(D1)

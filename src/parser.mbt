@@ -65,12 +65,11 @@ pub fn parse(input : String) -> ParseResult {
     }
 
     // セクションラベル: [名前] の単独行
-    let label_candidate = raw.trim().to_owned()
-    if label_candidate.length() >= 2 &&
-      label_candidate.has_prefix("[") &&
-      label_candidate.has_suffix("]") {
-      let name = label_candidate
-        .unsafe_substring(start=1, end=label_candidate.length() - 1)
+    if trimmed.length() >= 2 &&
+      trimmed.has_prefix("[") &&
+      trimmed.has_suffix("]") {
+      let name = trimmed
+        .unsafe_substring(start=1, end=trimmed.length() - 1)
         .trim()
         .to_owned()
       sections.push({ line_number, name })
@@ -87,67 +86,10 @@ pub fn parse(input : String) -> ParseResult {
         BarTok => tokens.push(BarLine)
         RepeatTok => tokens.push(Repeat)
         BlankTok => tokens.push(EmptyBeat)
-        ChordTok => {
-          // - で連結されたグループ（1 スロット複数コード）を分割
-          let (parts, offsets) = split_group_parts(pt.text)
-          // 全パートが空（"---" など区切り文字だけのトークン）は 1 つの
-          // UnrecognizedToken として報告する
-          let mut all_empty = true
-          for part in parts {
-            if !part.is_empty() {
-              all_empty = false
-              break
-            }
-          }
-          if all_empty {
-            errors.push(
-              unrecognized_token_error(pt.text, 0)
-              .shift_position(pt.col)
-              .with_line(line_number),
-            )
+        ChordTok =>
+          if !parse_chord_token(pt, line_number, tokens, errors) {
             line_ok = false
-          } else if parts.length() == 1 &&
-            (pt.text == "NC" || pt.text == "N.C.") {
-            // NC / N.C.（コードなし）
-            tokens.push(NoChord)
-          } else if parts.length() == 1 {
-            match parse_chord(pt.text) {
-              Ok(node) => tokens.push(Chord(node))
-              Err(e) => {
-                // トークン内位置 → 行内位置へシフトし、行番号を付与
-                errors.push(e.shift_position(pt.col).with_line(line_number))
-                line_ok = false
-              }
-            }
-          } else {
-            let chords : Array[ChordNode] = []
-            for i, part in parts {
-              if part.is_empty() {
-                errors.push(
-                  unrecognized_token_error(pt.text, 0)
-                  .shift_position(pt.col + offsets[i])
-                  .with_line(line_number),
-                )
-                line_ok = false
-              } else {
-                match parse_chord(part) {
-                  Ok(node) => chords.push(node)
-                  Err(e) => {
-                    errors.push(
-                      e
-                      .shift_position(pt.col + offsets[i])
-                      .with_line(line_number),
-                    )
-                    line_ok = false
-                  }
-                }
-              }
-            }
-            if line_ok {
-              tokens.push(ChordGroup(chords))
-            }
           }
-        }
       }
     }
     if line_ok {
@@ -155,6 +97,81 @@ pub fn parse(input : String) -> ParseResult {
     }
   }
   { score: { meta, sections, lines }, errors }
+}
+
+///|
+/// コードトークン（`-` グループ・NC 含む）を解析して tokens に追加する。
+/// エラーは行番号・行内位置つきで errors に積む。
+/// 返り値: トークンが有効だったか（false なら呼び出し側が行を無効化する）
+fn parse_chord_token(
+  pt : PosToken,
+  line_number : Int,
+  tokens : Array[Token],
+  errors : Array[ParseError],
+) -> Bool {
+  // - で連結されたグループ（1 スロット複数コード）を分割
+  let (parts, offsets) = split_group_parts(pt.text)
+  // 全パートが空（"---" など区切り文字だけのトークン）は 1 つの
+  // UnrecognizedToken として報告する
+  let mut all_empty = true
+  for part in parts {
+    if !part.is_empty() {
+      all_empty = false
+      break
+    }
+  }
+  if all_empty {
+    errors.push(
+      unrecognized_token_error(pt.text, 0)
+      .shift_position(pt.col)
+      .with_line(line_number),
+    )
+    return false
+  }
+  if parts.length() == 1 && (pt.text == "NC" || pt.text == "N.C.") {
+    // NC / N.C.（コードなし）
+    tokens.push(NoChord)
+    return true
+  }
+  if parts.length() == 1 {
+    match parse_chord(pt.text) {
+      Ok(node) => {
+        tokens.push(Chord(node))
+        return true
+      }
+      Err(e) => {
+        // トークン内位置 → 行内位置へシフトし、行番号を付与
+        errors.push(e.shift_position(pt.col).with_line(line_number))
+        return false
+      }
+    }
+  }
+  let chords : Array[ChordNode] = []
+  let mut ok = true
+  for i, part in parts {
+    if part.is_empty() {
+      errors.push(
+        unrecognized_token_error(pt.text, 0)
+        .shift_position(pt.col + offsets[i])
+        .with_line(line_number),
+      )
+      ok = false
+    } else {
+      match parse_chord(part) {
+        Ok(node) => chords.push(node)
+        Err(e) => {
+          errors.push(
+            e.shift_position(pt.col + offsets[i]).with_line(line_number),
+          )
+          ok = false
+        }
+      }
+    }
+  }
+  if ok {
+    tokens.push(ChordGroup(chords))
+  }
+  ok
 }
 
 ///|
@@ -394,6 +411,14 @@ fn line_to_json_value(line : Line) -> Json {
 }
 
 ///|
+/// `{"type": name}` だけの JSON オブジェクト（構造を持たないトークン用）
+fn type_only_json(name : String) -> Json {
+  let obj : Map[String, Json] = {}
+  obj["type"] = Json::string(name)
+  Json::object(obj)
+}
+
+///|
 fn token_to_json_value(token : Token) -> Json {
   match token {
     Chord(node) => {
@@ -408,26 +433,10 @@ fn token_to_json_value(token : Token) -> Json {
       obj["chords"] = Json::array(nodes.map(chord_node_to_json_value))
       Json::object(obj)
     }
-    BarLine => {
-      let obj : Map[String, Json] = {}
-      obj["type"] = Json::string("BarLine")
-      Json::object(obj)
-    }
-    Repeat => {
-      let obj : Map[String, Json] = {}
-      obj["type"] = Json::string("Repeat")
-      Json::object(obj)
-    }
-    NoChord => {
-      let obj : Map[String, Json] = {}
-      obj["type"] = Json::string("NoChord")
-      Json::object(obj)
-    }
-    EmptyBeat => {
-      let obj : Map[String, Json] = {}
-      obj["type"] = Json::string("EmptyBeat")
-      Json::object(obj)
-    }
+    BarLine => type_only_json("BarLine")
+    Repeat => type_only_json("Repeat")
+    NoChord => type_only_json("NoChord")
+    EmptyBeat => type_only_json("EmptyBeat")
   }
 }
 

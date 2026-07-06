@@ -185,6 +185,9 @@ pub struct ScoreAST {
   sections : Array[SectionLabel]
   lines : Array[Line]
 }
+pub fn ScoreAST::bpm_or_default(Self) -> Int
+pub fn ScoreAST::key_or_default(Self) -> String
+pub fn ScoreAST::time_or_default(Self) -> String
 pub fn ScoreAST::to_json(Self) -> String
 pub fn ScoreAST::to_json_value(Self) -> Json
 pub fn ScoreAST::to_string(Self) -> String

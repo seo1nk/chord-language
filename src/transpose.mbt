@@ -105,36 +105,15 @@ fn degree_note_name(
 
 ///|
 /// ChordNode をキーに基づく実音コード名テキスト（表示用）に変換する。
-/// クオリティ・セブンス・テンション等の表記はディグリー表示と同じ規則で引き継ぐ
+/// クオリティ・セブンス・テンション等はディグリー表示と共通のサフィックス
+/// （chord_suffix_text）を使い、ルートとベースだけを実音に解決する
 fn chord_note_text(node : ChordNode, key : KeyInfo) -> String {
   let root = degree_note_name(key, node.degree, node.accidental)
-  let qual = match node.quality {
-    Some(Minor) => "m"
-    Some(Diminish) => "dim"
-    Some(Augment) => "aug"
-    None => ""
-  }
-  let sev = match node.seventh {
-    Some(Seventh) => "7"
-    Some(MajorSeventh) => "M7"
-    Some(Sixth) => "6"
-    Some(Add(d)) => "add" + d.to_string()
-    None => ""
-  }
-  let alt = match node.alteration {
-    Some(a) => alteration_display(a)
-    None => ""
-  }
-  let opts = if node.options.length() > 0 {
-    "(" + node.options.map(option_display).join(",") + ")"
-  } else {
-    ""
-  }
   let bass = match node.bass {
     Some(b) => "/" + degree_note_name(key, b.degree, b.accidental)
     None => ""
   }
-  root + qual + sev + alt + opts + bass
+  root + chord_suffix_text(node) + bass
 }
 
 ///|

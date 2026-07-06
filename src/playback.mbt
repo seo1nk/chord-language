@@ -187,41 +187,20 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
 /// - パースエラーのある行は score から除外済みのため、描画される行だけが鳴る
 pub fn parse_to_playback(input : String, key : String) -> String {
   let result = parse(input)
+  // 指定キーが不正な場合はフロントマターの key（既定 C）にフォールバック
   let key_info = match parse_key_name(key) {
     Some(k) => k
     None =>
-      match result.score.meta {
-        Some(meta) =>
-          match meta.key {
-            Some(mk) =>
-              match parse_key_name(mk) {
-                Some(k) => k
-                None => { letter_idx: 0, alter: 0 }
-              }
-            None => { letter_idx: 0, alter: 0 }
-          }
-        None => { letter_idx: 0, alter: 0 }
+      match parse_key_name(result.score.key_or_default()) {
+        Some(k) => k
+        None => { letter_idx: 0, alter: 0 } // C
       }
   }
   let tonic_pc = key_pitch_class(key_info)
-  let bpm = match result.score.meta {
-    Some(meta) =>
-      match meta.bpm {
-        Some(t) => t
-        None => 120
-      }
-    None => 120
-  }
+  let bpm = result.score.bpm_or_default()
   // 拍子（既定 4/4）から 1 スロット（= 1 小節）の長さとベースの刻みを決める。
   // 長さの単位は 4 分音符（bpm 基準）
-  let time_sig = match result.score.meta {
-    Some(meta) =>
-      match meta.time {
-        Some(t) => t
-        None => "4/4"
-      }
-    None => "4/4"
-  }
+  let time_sig = result.score.time_or_default()
   let (ts_num, ts_den) = match time_sig.find("/") {
     Some(slash) => {
       let n = time_sig.unsafe_substring(start=0, end=slash)
