@@ -89,6 +89,7 @@ pub enum Quality {
   Minor // m
   Diminish // dim
   Augment // aug
+  Quartal // q(4度堆積: ルート + 完全4度 + 完全4度)
 }
 
 ///|

@@ -86,13 +86,16 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
   let root_pc = (tonic_pc + degree_interval(node.degree) + acc + 24) % 12
   let root = 60 + root_pc // C4 基準
   // 基本形
+  // q(4度堆積)は 3 度・5 度の代わりに完全4度を 2 つ積む(root, +5, +10)
   let mut third = match node.quality {
     Some(Minor) | Some(Diminish) => 3
+    Some(Quartal) => 5
     _ => 4
   }
   let mut fifth = match node.quality {
     Some(Diminish) => 6
     Some(Augment) => 8
+    Some(Quartal) => 10
     _ => 7
   }
   let mut has_third = true

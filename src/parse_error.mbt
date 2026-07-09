@@ -15,6 +15,7 @@ pub enum ParseErrorKind {
   DuplicateSeventh // セブンスの重複
   MissingBassDegree // スラッシュベースでディグリーが欠落
   InvalidSusDegree(String) // 不正なsusディグリー（2/4/6以外）
+  InvalidQuartalCombination // q に付加要素(セブンス・sus・テンション等)が続いた
 
   // フロントマターのエラー
   UnclosedFrontmatter // 閉じの --- が無い
@@ -52,6 +53,7 @@ pub fn ParseError::kind_name(self : ParseError) -> String {
     DuplicateSeventh => "DuplicateSeventh"
     MissingBassDegree => "MissingBassDegree"
     InvalidSusDegree(_) => "InvalidSusDegree"
+    InvalidQuartalCombination => "InvalidQuartalCombination"
     UnclosedFrontmatter => "UnclosedFrontmatter"
     InvalidFrontmatterField(_) => "InvalidFrontmatterField"
     InvalidKey(_) => "InvalidKey"
@@ -80,6 +82,8 @@ pub fn ParseError::message(self : ParseError) -> String {
       "スラッシュの後にはベースのディグリーが必要です"
     InvalidSusDegree(d) =>
       "不正な sus ディグリー '\{d}'(2 / 4 / 6 のみ)"
+    InvalidQuartalCombination =>
+      "q(4度堆積)にはセブンスや sus・テンションなどを付けられません"
     UnclosedFrontmatter =>
       "フロントマターが閉じていません(--- が必要)"
     InvalidFrontmatterField(f) =>
@@ -277,6 +281,19 @@ pub fn invalid_sus_degree_error(
 ) -> ParseError {
   {
     kind: InvalidSusDegree(degree),
+    position: Some(pos),
+    line: None,
+    token: Some(token),
+  }
+}
+
+///|
+pub fn invalid_quartal_combination_error(
+  token : String,
+  pos : Int,
+) -> ParseError {
+  {
+    kind: InvalidQuartalCombination,
     position: Some(pos),
     line: None,
     token: Some(token),

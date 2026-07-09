@@ -127,3 +127,14 @@ test "render nc and empty beats with lyrics" {
     ),
   )
 }
+
+///|
+/// q(4度堆積)と m7-5(ハーフディミニッシュ)の表示
+test "render quartal and half-diminished" {
+  inspect(
+    @chord_language.parse_to_html("1q 2m7-5"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line"><span class="chord-cell chord">Iq</span><span class="chord-cell chord">IIm7♭5</span></div></div>
+    ),
+  )
+}

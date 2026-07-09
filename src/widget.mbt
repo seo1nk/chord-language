@@ -183,8 +183,10 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>1</code><span>ディグリー 1〜7（Key: C なら 1=C, 6m=Am）</span>
     #|<code>#4 s4 b7</code><span>シャープ（# / s どちらでも）・フラット</span>
     #|<code>2m 4dim 5aug</code><span>マイナー / ディミニッシュ / オーギュメント</span>
+    #|<code>1q</code><span>4度堆積（ルート + 完全4度 + 完全4度）</span>
     #|<code>17 1M7 1maj7 16 1add9</code><span>セブンス・シックス・add（M7 と maj7 は同じ）</span>
     #|<code>1M7(b9,#11)</code><span>テンションは括弧内にカンマ区切り</span>
+    #|<code>2m7-5</code><span>ハーフディミニッシュ（m7 の直後のみ。2m7b5 / 2m7(b5) と同じ）</span>
     #|<code>1sus4 4M7(b5)</code><span>sus2/4/6・フラットファイブ</span>
     #|<code>3m/5</code><span>スラッシュベース</span>
     #|<code>b3@red</code><span>強調色（red / blue / green、末尾）</span>

@@ -116,3 +116,24 @@ test "playback bpm field" {
   let json = @chord_language.parse_to_playback("---\nbpm: 132\n---\n1", "C")
   assert_true(json.contains("\"bpm\":132"))
 }
+
+///|
+/// q(4度堆積)は完全4度を 2 つ積む(root, +5, +10)
+test "playback quartal chord" {
+  let json = @chord_language.parse_to_playback("1q", "C")
+  // C4(60) F4(65) B♭4(70)
+  assert_true(json.contains("\"notes\":[60,65,70]"))
+}
+
+///|
+/// m7-5(ハーフディミニッシュ)は m7b5 と同じ構成音
+test "playback half-diminished dash notation" {
+  let json = @chord_language.parse_to_playback("2m7-5", "C")
+  // D4(62) F4(65) A♭4(68) C5(72)
+  assert_true(json.contains("\"notes\":[62,65,68,72]"))
+  let json2 = @chord_language.parse_to_playback("2m7b5", "C")
+  assert_eq(
+    json.contains("\"notes\":[62,65,68,72]"),
+    json2.contains("\"notes\":[62,65,68,72]"),
+  )
+}

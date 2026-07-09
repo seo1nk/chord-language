@@ -24,6 +24,8 @@ pub fn invalid_frontmatter_field_error(String, Int) -> ParseError
 
 pub fn invalid_key_error(String, Int) -> ParseError
 
+pub fn invalid_quartal_combination_error(String, Int) -> ParseError
+
 pub fn invalid_seventh_error(String, String, Int) -> ParseError
 
 pub fn invalid_sus_degree_error(String, String, Int) -> ParseError
@@ -160,6 +162,7 @@ pub enum ParseErrorKind {
   DuplicateSeventh
   MissingBassDegree
   InvalidSusDegree(String)
+  InvalidQuartalCombination
   UnclosedFrontmatter
   InvalidFrontmatterField(String)
   InvalidKey(String)
@@ -178,6 +181,7 @@ pub enum Quality {
   Minor
   Diminish
   Augment
+  Quartal
 }
 
 pub struct ScoreAST {

@@ -86,6 +86,7 @@ fn chord_suffix_text(node : ChordNode) -> String {
     Some(Minor) => "m"
     Some(Diminish) => "dim"
     Some(Augment) => "aug"
+    Some(Quartal) => "q"
     None => ""
   }
   let sev = match node.seventh {

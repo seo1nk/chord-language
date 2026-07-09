@@ -965,3 +965,78 @@ test "parse frontmatter time signature" {
     }
   }
 }
+
+///|
+/// -5(ハーフディミニッシュの慣用表記)は m7 の直後のみ b5 として解釈される
+test "parse m7-5 as half-diminished" {
+  match parse_ok("2m7-5").lines[0].tokens[0] {
+    @chord_language.Chord(node) => {
+      match node.quality {
+        Some(@chord_language.Minor) => () // OK
+        _ => fail("Expected Minor quality")
+      }
+      match node.alteration {
+        Some(@chord_language.FlatFive) => () // OK
+        _ => fail("Expected FlatFive alteration")
+      }
+    }
+    _ => fail("Expected Chord")
+  }
+  // m7-5 と m7b5・m7(b5) は同じ AST になる
+  assert_eq(parse_ok("2m7-5").to_json(), parse_ok("2m7b5").to_json())
+  // -5 の後ろにはテンション・ベース・色を続けられる
+  let _ = parse_ok("2m7-5(9) s4m7-5/1 2m7-5@red")
+}
+
+///|
+/// -5 は m7 の直後以外ではグループ区切りのまま(既存のグループ表記を維持)
+test "parse dash five only after m7" {
+  for src in ["2-5", "27-5", "2M7-5", "2m-5", "16-5"] {
+    match parse_ok(src).lines[0].tokens[0] {
+      @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
+      _ => fail("Expected ChordGroup for " + src)
+    }
+  }
+  // グループの中では -5 は使えない(2m7-5-1 は 3 コードのグループ。
+  // ハーフディミニッシュをグループに入れるときは 2m7b5-1 と書く)
+  match parse_ok("2m7-5-1").lines[0].tokens[0] {
+    @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 3)
+    _ => fail("Expected ChordGroup")
+  }
+  match parse_ok("2m7b5-1").lines[0].tokens[0] {
+    @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
+    _ => fail("Expected ChordGroup")
+  }
+}
+
+///|
+/// q(4度堆積)のパース
+test "parse quartal chord" {
+  match parse_ok("1q").lines[0].tokens[0] {
+    @chord_language.Chord(node) =>
+      match node.quality {
+        Some(@chord_language.Quartal) => () // OK
+        _ => fail("Expected Quartal quality")
+      }
+    _ => fail("Expected Chord")
+  }
+  // アクシデンタル・ベース・色とは組み合わせ可能
+  let _ = parse_ok("b3q 4q/1 1q@blue")
+}
+
+///|
+/// エラーケース: q にセブンス・sus・b5・テンションは付けられない
+test "error on quartal with extras" {
+  for input in ["1q7", "1qM7", "1qsus4", "1qb5", "1q(9)"] {
+    match single_error(input).kind {
+      @chord_language.InvalidQuartalCombination => () // OK
+      _ => fail("Expected InvalidQuartalCombination for " + input)
+    }
+  }
+
+  // 1q-5 は -5 が m7 直後でないため、従来どおり 1q と 5 のグループになる
+  match parse_ok("1q-5").lines[0].tokens[0] {
+    @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
+    _ => fail("Expected ChordGroup")
+  }
+}

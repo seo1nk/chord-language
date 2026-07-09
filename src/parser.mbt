@@ -146,6 +146,17 @@ fn parse_chord_token(
       }
     }
   }
+  // グループに分割する前に、トークン全体を単一コードとして試す。
+  // ハーフディミニッシュの -5 表記(2m7-5)をグループ 2m7 + 5 より優先する
+  // ため。-5 は m7 の直後のみ受理されるので、度数のみの 2-5 などは単一
+  // コードとして成立せず、従来どおりグループになる
+  match parse_chord(pt.text) {
+    Ok(node) => {
+      tokens.push(Chord(node))
+      return true
+    }
+    Err(_) => ()
+  }
   let chords : Array[ChordNode] = []
   let mut ok = true
   for i, part in parts {
@@ -299,6 +310,7 @@ fn chord_source_text(node : ChordNode) -> String {
     Some(Minor) => "m"
     Some(Diminish) => "dim"
     Some(Augment) => "aug"
+    Some(Quartal) => "q"
     None => ""
   }
   let sev = match node.seventh {
@@ -459,6 +471,7 @@ fn chord_node_to_json_value(node : ChordNode) -> Json {
     Some(Minor) => obj["quality"] = Json::string("m")
     Some(Diminish) => obj["quality"] = Json::string("dim")
     Some(Augment) => obj["quality"] = Json::string("aug")
+    Some(Quartal) => obj["quality"] = Json::string("q")
     None => ()
   }
 

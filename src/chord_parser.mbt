@@ -77,9 +77,10 @@ fn parse_quality(state : ParserState) -> (ParserState, Quality?) {
   if state.pos + 4 <= state.length && state.take(4) == "maj7" {
     return (state, None)
   }
-  // "m" (1文字) をチェック
+  // "m" / "q" (1文字) をチェック
   match state.current_char() {
     Some('m') => (state.advance(1), Some(Minor))
+    Some('q') => (state.advance(1), Some(Quartal))
     _ => (state, None)
   }
 }
@@ -140,9 +141,15 @@ fn parse_seventh(
 fn parse_alteration(
   state : ParserState,
   token : String,
+  allow_dash_five : Bool,
 ) -> Result[(ParserState, Alteration?), ParseError] {
   // b5 をチェック
   if state.pos + 2 <= state.length && state.take(2) == "b5" {
+    return Ok((state.advance(2), Some(FlatFive)))
+  }
+  // -5（ハーフディミニッシュの慣用表記 m7-5。クオリティ m +
+  // セブンス 7 の直後のみ。`-` はグループ区切りと衝突するため）
+  if allow_dash_five && state.pos + 2 <= state.length && state.take(2) == "-5" {
     return Ok((state.advance(2), Some(FlatFive)))
   }
   // sus をチェック
@@ -374,6 +381,7 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
   state = after_quality
 
   // 4. セブンス
+  let quartal_extras_pos = state.pos // q に不正な付加が続いた場合のエラー位置
   let seventh = match parse_seventh(state, token) {
     Ok((new_state, sev)) => {
       state = new_state
@@ -390,8 +398,9 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
     }
   }
 
-  // 5. オルタレーション（括弧外）
-  let alteration = match parse_alteration(state, token) {
+  // 5. オルタレーション（括弧外）。-5 は m7 の直後のみ受理する
+  let allow_dash_five = quality is Some(Minor) && seventh is Some(Seventh)
+  let alteration = match parse_alteration(state, token, allow_dash_five) {
     Ok((new_state, alt)) => {
       state = new_state
       alt
@@ -406,6 +415,12 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
       opts
     }
     Err(e) => return Err(e)
+  }
+
+  // 6b. q（4度堆積）はセブンス・sus/b5・テンションと組み合わせ不可
+  if quality is Some(Quartal) &&
+    (seventh is Some(_) || alteration is Some(_) || options.length() > 0) {
+    return Err(invalid_quartal_combination_error(token, quartal_extras_pos))
   }
 
   // 7. ベース音
