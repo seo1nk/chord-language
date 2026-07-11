@@ -100,11 +100,14 @@ pub fn render_widget_html(input : String) -> String {
     )
   }
   sb.write_string("</select>")
+  // 再生・画像コピーはアイコンのみ(モバイルの幅でも並びが崩れないように)
   sb.write_string(
-    "<button type=\"button\" class=\"chord-play\" title=\"表示中のキーで再生\">▶ 再生</button>",
+    "<button type=\"button\" class=\"chord-play\" title=\"表示中のキーで再生\" aria-label=\"再生\">▶</button>",
   )
   sb.write_string(
-    "<button type=\"button\" class=\"chord-copy-img\" title=\"表示中の譜面を画像としてコピー\">画像コピー</button>",
+    "<button type=\"button\" class=\"chord-copy-img\" title=\"表示中の譜面を画像としてコピー\" aria-label=\"画像コピー\">" +
+    camera_icon_svg +
+    "</button>",
   )
   sb.write_string("</div>")
   // パネル
@@ -157,6 +160,7 @@ pub fn chord_css() -> String {
     #|.chord-copy-img, .chord-play { font: inherit; font-size: 0.72em; align-self: center; margin-bottom: 0.25em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.1em 0.6em; cursor: pointer; opacity: 0.75; }
     #|.chord-play { margin-left: 0.45em; }
     #|.chord-copy-img { margin-left: 0.45em; }
+    #|.chord-copy-img svg { vertical-align: -0.3em; }
     #|.chord-copy-img:hover, .chord-play:hover { opacity: 1; }
     #|.chord-cheatsheet { display: grid; font-size: 0.78em; grid-template-columns: max-content 1fr; column-gap: 1.1em; row-gap: 0.28em; align-items: baseline; }
     #|.chord-cheatsheet code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95em; white-space: nowrap; }
@@ -171,6 +175,10 @@ pub fn chord_css() -> String {
     #|@media print { .chord-tabs { display: none; } }
   )
 }
+
+///|
+/// 画像コピーボタンのカメラアイコン(stroke は currentColor でテーマ追従)
+let camera_icon_svg : String = "<svg viewBox=\"0 0 24 24\" width=\"1.2em\" height=\"1.2em\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg>"
 
 ///|
 /// 記法チートシートの HTML（`.chord-cheatsheet`）を返す。
