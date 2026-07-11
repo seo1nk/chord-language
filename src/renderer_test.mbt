@@ -138,3 +138,39 @@ test "render quartal and half-diminished" {
     ),
   )
 }
+
+///|
+/// インラインコード譜: 単一コード記号のインライン HTML(ホスト Markdown の :2m7: 用)
+test "inline chord html renders single chord" {
+  inspect(
+    @chord_language.inline_chord_html("2m7"),
+    content=(
+      #|<span class="chord-inline">IIm7</span>
+    ),
+  )
+  inspect(
+    @chord_language.inline_chord_html("s4m7-5/b7"),
+    content=(
+      #|<span class="chord-inline">#IVm7♭5/♭VII</span>
+    ),
+  )
+  inspect(
+    @chord_language.inline_chord_html("b3@red"),
+    content=(
+      #|<span class="chord-inline chord--red">♭III</span>
+    ),
+  )
+}
+
+///|
+/// インラインコード譜: 単一のコード記号としてパースできなければ空文字列
+/// (呼び出し側が平文にフォールバックする契約)
+test "inline chord html rejects non-chord tokens" {
+  inspect(@chord_language.inline_chord_html(""), content="")
+  inspect(@chord_language.inline_chord_html("smile"), content="")
+  inspect(@chord_language.inline_chord_html("8"), content="")
+  inspect(@chord_language.inline_chord_html("1 4"), content="")
+  inspect(@chord_language.inline_chord_html("1M7x"), content="")
+  inspect(@chord_language.inline_chord_html("%"), content="")
+  inspect(@chord_language.inline_chord_html("NC"), content="")
+}

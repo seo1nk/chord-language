@@ -12,6 +12,7 @@ options(
         "parse_to_html",
         "parse_to_notes_html",
         "parse_to_playback",
+        "inline_chord_html",
         "render_widget_html",
         "chord_cheatsheet_html",
         "chord_css",

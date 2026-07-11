@@ -14,6 +14,8 @@ pub fn get_version() -> String
 
 pub fn health_check() -> String
 
+pub fn inline_chord_html(String) -> String
+
 pub fn invalid_color_error(String, String, Int) -> ParseError
 
 pub fn invalid_comma_usage_error(String, Int) -> ParseError

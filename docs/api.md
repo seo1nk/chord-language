@@ -19,6 +19,7 @@ import {
   parse_to_html,
   parse_to_notes_html,
   parse_to_playback,
+  inline_chord_html,
   render_widget_html,
   chord_cheatsheet_html,
   chord_css,
@@ -27,7 +28,7 @@ import {
 } from ".../chord_language.js";
 ```
 
-すべての関数は同期・純粋（DOM や環境に触れない）で、入力の `input` は `:::` フェンスの**内側のテキスト**（フロントマターを含む。フェンス行は含まない）。
+すべての関数は同期・純粋（DOM や環境に触れない）で、入力の `input` は `:::` フェンスの**内側のテキスト**（フロントマターを含む。フェンス行は含まない）。例外は `inline_chord_html` で、こちらの入力はインラインコード譜 `:コード:` の**内側の 1 トークン**。
 
 ### `parse_to_json(input: string): string`
 
@@ -60,6 +61,21 @@ import {
 
 - `key`: `"C"` `"F#"` `"Bb"` などのメジャーキー名
 - **フォールバック**: パースエラーがある場合はディグリー表示（エラー埋め込み）を、`key` が不正な場合はディグリー表示を返す
+
+### `inline_chord_html(token: string): string`
+
+**単一のコード記号**をインライン表示 HTML にして返す。ホスト Markdown のインラインコード譜記法（markdown.mbt フォークの `:2m7:`）のレンダリングに使う。
+
+```js
+inline_chord_html("2m7");    // => '<span class="chord-inline">IIm7</span>'
+inline_chord_html("b3@red"); // => '<span class="chord-inline chord--red">♭III</span>'
+inline_chord_html("smile");  // => ''
+```
+
+- `token`: `:` で囲まれた内側のテキスト（例 `"2m7"` `"s4m7-5/b7"`）。文法はブロックのコード記号と同一
+- 表示は**ディグリーのみ**（タブ・移調・再生は持たない）
+- **フォールバック**: 単一のコード記号としてパースできない場合は**空文字列**を返す。呼び出し側は元のテキスト（`:token:`）をそのまま表示すること
+- `@色` は `chord--red` などのクラスとして付与される。スタイルは `chord_css()`（`.chord-inline`）の注入が前提
 
 ### `render_widget_html(input: string): string`
 
@@ -117,7 +133,8 @@ import {
 |-----------|------|
 | `parse(input : String) -> ParseResult` | `ParseResult { score : ScoreAST, errors : Array[ParseError] }` |
 | `render_widget_html(input : String) -> String` | SSR で使うのは基本これだけ |
-| `parse_to_html` / `parse_to_notes_html` / `parse_to_playback` / `chord_cheatsheet_html` / `chord_css` | JS 版と同一 |
+| `parse_chord(token : String) -> Result[ChordNode, ParseError]` | 単一コード記号のパース（インライン記法の妥当性判定に使える） |
+| `parse_to_html` / `parse_to_notes_html` / `parse_to_playback` / `inline_chord_html` / `chord_cheatsheet_html` / `chord_css` | JS 版と同一 |
 | `ScoreAST` / `Line` / `Token` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応） |
 
 ---
@@ -162,6 +179,7 @@ import {
    }
    ```
    （` ``` ` フェンスは言語タグに関わらず通常のコードブロックのまま）
+4. インラインコード譜 `:コード:` はフォークのインラインパーサが `Inline::ChordInline(src)` として認識し（前後が半角英数字でない・空白/`:` を含まない・`parse_chord` が成功する場合のみ）、HTML レンダラが `inline_chord_html(src)` を出力する。パース不能なトークンは平文のまま
 
 ### 3.2 ライブプレビュー経路（JS）
 
@@ -174,6 +192,7 @@ import {
      ),
    },
    ```
+3. インラインコード譜は mdast の `{type: "chordInline", value: src}`（独自ノード）にマップされる。プレビューのインラインレンダラは `inline_chord_html(value)` の HTML を挿入し、空文字列が返ったら `:value:` を平文で表示する
 
 ### 3.3 CSS の注入（両経路共通・1 回だけ）
 
@@ -209,8 +228,8 @@ document.head.appendChild(style);
     <button class="chord-tab chord-tab--active" data-chord-tab="degree">ディグリー</button>
     <button class="chord-tab" data-chord-tab="notes">コード</button>
     <select class="chord-key-select">…12 キー…</select>
-    <button class="chord-play">▶ 再生</button>
-    <button class="chord-copy-img">画像コピー</button>
+    <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
+    <button class="chord-copy-img" aria-label="画像コピー"><svg data-icon="camera">…</svg></button>
   </div>
   <div class="chord-panel chord-panel--degree"> <div class="chord-score">…</div> </div>
   <div class="chord-panel chord-panel--notes">  <div class="chord-score">…</div> </div>
@@ -220,6 +239,7 @@ document.head.appendChild(style);
 - パネルの表示/非表示・キー選択の可視性は `data-chord-active` に対する CSS（`chord_css()` 内）が制御する
 - `cursor.cell` は**表示中パネル内**の `.chord-cell` を `querySelectorAll` した文書順インデックスに対応する（空セルを含む）
 - パースエラー時は `chord-widget` を含まない `<div class="chord-score">…<div class="chord-line chord-error">…</div>…</div>` が返る
+- インラインコード譜（`inline_chord_html`）は `<span class="chord-inline">…</span>`（`@色` 指定時は `chord--red` 等を併記）。ウィジェットの外に単独で現れ、クライアントランタイムは関与しない
 
 ### 3.6 ビルドと配信
 

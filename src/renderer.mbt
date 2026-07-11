@@ -471,6 +471,30 @@ pub fn parse_to_html(input : String) -> String {
 }
 
 ///|
+/// 単一のコード記号をインライン表示用 HTML にする。
+/// ホスト Markdown のインラインコード譜記法（markdown.mbt フォークの `:2m7:`）が
+/// 使う想定で、表示はディグリーのみ（タブ・移調・再生は持たない）。
+/// 文法はブロックのコード記号と同一（アクシデンタル・クオリティ・テンション・
+/// スラッシュベース・@色）。単一のコード記号としてパースできない場合は
+/// 空文字列を返し、呼び出し側が元テキストのまま表示するようフォールバックする。
+pub fn inline_chord_html(token : String) -> String {
+  match parse_chord(token) {
+    Ok(node) => {
+      let color_cls = match node.color {
+        Some(c) => " chord--" + c.to_string()
+        None => ""
+      }
+      "<span class=\"chord-inline" +
+      color_cls +
+      "\">" +
+      escape_html(chord_display_text(node)) +
+      "</span>"
+    }
+    Err(_) => ""
+  }
+}
+
+///|
 /// 入力をパースし、指定キーの実音コード名でスコアを描画する。
 /// パースエラーがある場合や不正なキー名の場合はディグリー表示（エラー埋め込み）に
 /// フォールバックする。キー変更時のクライアント再レンダリング用 API。

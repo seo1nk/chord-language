@@ -30,6 +30,7 @@ import {
   parse_to_html,      // ディグリー表示のスコア HTML
   parse_to_notes_html, // 指定キーの実音表示 HTML
   render_widget_html, // タブ・キー選択・再生・画像コピー付きウィジェット HTML
+  inline_chord_html,  // 単一コード記号のインライン HTML（:2m7: 記法用。不正なら ""）
   parse_to_playback,  // 再生スケジュール JSON（bpm/totalBeats/events/bass/stabs/cursor）
   chord_css,          // スコープ付き CSS（ページに 1 回注入）
 } from "./_build/js/release/build/chord_language.js";

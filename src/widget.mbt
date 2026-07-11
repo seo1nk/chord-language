@@ -136,6 +136,7 @@ pub fn chord_css() -> String {
     #|.chord-line--start-bar .chord-cell:first-child { border-left: var(--chord-barline); }
     #|.chord-line--end-bar .chord-cell:last-child { border-right: var(--chord-barline); }
     #|.chord-score .chord { font-weight: 500; font-size: 1.06em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; }
+    #|.chord-inline { font-weight: 500; font-size: 0.95em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; background: #8881; border: 1px solid #8883; border-radius: 4px; padding: 0.05em 0.4em; }
     #|.chord-cell.chord-group { display: flex; align-items: baseline; column-gap: 0.5em; }
     #|.chord-cell.chord-group > .chord { flex: 1 1 0; min-width: max-content; }
     #|.chord-repeat { opacity: 0.7; }
@@ -230,6 +231,7 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>[Aメロ]</code><span>セクションラベル（単独行）</span>
     #|<code>&gt; ひかりの _ さきへ</code><span>直前のコード行への歌詞。空白 = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース</span>
     #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）</span>
+    #|<code>:2m7:</code><span>インラインコード譜（::: の外の本文中に 1 コード。ディグリー表示のみ）</span>
     #|<div class="chord-cheat-head">例: 2-5-1（コピーして試してみてください）</div>
     #|<pre class="chord-cheat-example">:::
     #|---
