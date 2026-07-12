@@ -2,7 +2,7 @@
 
 chord-language が公開する API と、Markdown 側（markdown.mbt フォーク）からの呼び方を定義する。言語仕様そのものは [chord.md](./chord.md) を参照。
 
-- 対象バージョン: 1.0.0
+- 対象バージョン: 1.1.0
 - JS ビルド成果物: `_build/js/release/build/chord_language.js`（ESM。`moon build --target js --release` で生成）
 
 ## 設計原則
@@ -59,7 +59,7 @@ import {
 
 指定キーの**実音表示**スコア HTML を返す。キー変更（移調）時の再描画に使う。
 
-- `key`: `"C"` `"F#"` `"Bb"` などのメジャーキー名
+- `key`: `"C"` `"F#"` `"Bb"` などのメジャーキー名。意味は**初期キーの差し替え**で、文中の転調指示 `[key: 値]`（[chord.md の転調指示](./chord.md#転調指示key-値)）には選択キーと宣言キーの差 δ が一様に適用される
 - **フォールバック**: パースエラーがある場合はディグリー表示（エラー埋め込み）を、`key` が不正な場合はディグリー表示を返す
 
 ### `inline_chord_html(token: string): string`
@@ -107,8 +107,9 @@ inline_chord_html("smile");  // => ''
 }
 ```
 
-- `key` が不正な場合はフロントマターの `key`（無ければ `C`）にフォールバック
-- パースエラーのある行は再生からも除外される（`events` / `bass` / `cursor` に現れない）
+- `key` が不正な場合はフロントマターの `key`（無ければ `C`）にフォールバック。`key` の意味は `parse_to_notes_html` と同じ「初期キーの差し替え」で、文中の転調指示にも δ が一様に適用される
+- パースエラーのある行は再生からも除外される（`events` / `bass` / `cursor` に現れない）。**インライン転調を含む行が除外された場合、その転調も無かったものとして以降が解決される**
+- 転調指示は時間・`cursor` のセル番号に影響しない（`totalBeats` と `cursor` の並びは転調指示の有無で不変）
 - `%` の解決・`_` の持続・N.C. の無音・グループの等分割・拍子によるスロット長とベースの刻み・複合拍子の「ずんちゃっちゃ」（ずん = `bass`、ちゃっちゃ = `stabs`。[chord.md の再生仕様](./chord.md#再生仕様)）は**この関数がすべて解決済み**。呼び出し側はスケジュールをそのまま鳴らせばよい（`gain` はベース音量の乗数、`stabs` は持続和音より強いアタックで短く発音する）
 
 ### `chord_cheatsheet_html(): string`
@@ -123,7 +124,7 @@ inline_chord_html("smile");  // => ''
 
 ### `get_version(): string` / `health_check(): string`
 
-パッケージバージョン（`"1.0.0"`）/ 疎通確認（`"OK"`）。
+パッケージバージョン（`"1.1.0"`）/ 疎通確認（`"OK"`）。
 
 ## 2. MoonBit API（パッケージとして import する場合）
 
@@ -135,7 +136,7 @@ inline_chord_html("smile");  // => ''
 | `render_widget_html(input : String) -> String` | SSR で使うのは基本これだけ |
 | `parse_chord(token : String) -> Result[ChordNode, ParseError]` | 単一コード記号のパース（インライン記法の妥当性判定に使える） |
 | `parse_to_html` / `parse_to_notes_html` / `parse_to_playback` / `inline_chord_html` / `chord_cheatsheet_html` / `chord_css` | JS 版と同一 |
-| `ScoreAST` / `Line` / `Token` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応） |
+| `ScoreAST` / `Line` / `Token` / `KeyChange` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応。`KeyChange` は v1.1 の転調指示） |
 
 ---
 
@@ -164,7 +165,7 @@ inline_chord_html("smile");  // => ''
    ```
    さらにフォークの `moon.mod` の import にバージョン付きで宣言する（ワークスペースのメンバーがこの版を満たす）:
    ```
-   "seo1nk/chord_language@1.0.0",
+   "seo1nk/chord_language@1.1.0",
    ```
 2. `src/moon.pkg` に import を追加:
    ```
@@ -251,6 +252,7 @@ document.head.appendChild(style);
 
 ## 4. 互換性の約束
 
-- `:::` ブロック内テキストの解釈は [chord.md](./chord.md)（v1.0）に従う。文法の破壊的変更はメジャーバージョンでのみ行う
+- `:::` ブロック内テキストの解釈は [chord.md](./chord.md)（v1.1）に従う。文法の破壊的変更はメジャーバージョンでのみ行う
+- **ディレクティブ予約領域**: `[小文字識別子: 値]` 形式のブラケット（単独行・コード行内のインライントークンとも）は予約領域とする。**予約領域への意味付与は、実在文書への影響がないと判断した場合に限りマイナーバージョンで行える**（改訂履歴に必ず明記する）。v1.1 の転調指示 `[key: 値]` はこの枠での追加であり、将来の `[bpm: 140]` `[time: 3/4]`（途中変更）やモード対応も同じ枠で追加できる。予約領域の外（大文字始まり・コロンなし等のブラケット）の解釈は従来どおり互換性の対象
 - 公開 API の関数名・引数・JSON 形状（`parse_to_json` エンベロープ、`parse_to_playback` の `bpm/totalBeats/events/bass/stabs/cursor`）と、§3.5 の DOM コントラクトは互換性の対象
-- `chord-score` 内部の細かい HTML 構造（セルの入れ子等）は互換性の対象外（スタイルは `chord_css()` を使うこと）
+- `chord-score` 内部の細かい HTML 構造（セルの入れ子・転調チップ等）は互換性の対象外（スタイルは `chord_css()` を使うこと）

@@ -392,3 +392,35 @@
 - 再生 JSON のフィールド tempo → bpm、パッケージ版数 1.0.0
 
 上記に伴い、削除された互換のテスト（~ エイリアス・tempo エイリアス・```chord ウィジェット化）も削除・置換済み。
+
+---
+
+### 2026-07-12 更新（v1.1: 転調指示 `[key: 値]`）
+
+仕様 v1.1 で転調指示を追加（設計ノート: docs/modulation-design.md）。あわせて api.md §4 に `[小文字識別子: 値]` のディレクティブ予約領域を明文化した。
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| 単独行の転調（相対 `[key: +1]` / 絶対 `[key: F]`・セクションにならない・KeyChangeTok の AST 値・JSON 形状） | parser_test.mbt: "parse key changes" |
+| 空白バリエーション（`[ key : -2 ]` `[key:Eb]`） | parser_test.mbt: "parse key changes" |
+| 相対値の境界（`+11` / `-11` / `-1` は有効、`+0` / `+12` は不正） | parser_test.mbt: "parse key changes" / "key change errors" |
+| インライン転調がスロット・歌詞割り当てを消費しない | parser_test.mbt: "parse key changes" / playback_test.mbt: "playback key changes"（cursor 数の不変） |
+| 行頭の転調指示が先頭小節線の leading 判定・セル数に影響しない（`[key: +2] \|\| 1` = `\|\| 1`） | playback_test.mbt: "playback key changes" |
+| `[Key: F]`（大文字）・`[keys: 1]` はセクションラベルのまま | parser_test.mbt: "parse key changes" |
+| InvalidKeyChange（`+0` / `+12` / `H` / 値なし / 小文字キー / `+2x`・エラー行の除外・セクションバッジ化しない） | parser_test.mbt: "key change errors" |
+| 未クローズ `[key:+2` → InvalidKeyChange | parser_test.mbt: "key change errors" |
+| インラインのエラー位置（行内 0-indexed）・行番号 | parser_test.mbt: "key change errors" |
+| グループ内不可（`1-[key:+2]5` → InvalidDegree）・トークン先頭以外の `[`（`1[key:+2]`）は従来どおりエラー | parser_test.mbt: "key change errors" |
+| `key:` で始まらないブラケットの従来挙動保存（`[サビ] 1 4` → InvalidDegree） | parser_test.mbt: "key change errors" |
+| 転調単独行の直後の歌詞行（TooManyLyricFragments の専用メッセージ） | parser_test.mbt: "key change errors" |
+| 実音表示: 単独行 +1（ラスサビ）で以降が新キー基準・`Key D♭ (+1)` バッジ | transpose_test.mbt: "transpose key change standalone" |
+| 実音表示: インライン +2 の合成（C → D → E）・キー名のみのチップ | transpose_test.mbt: "transpose key change inline" |
+| プルダウン移調 δ の絶対キーへの一様適用（宣言 C・選択 D で `[key: F]` → G） | transpose_test.mbt: "transpose key change delta on absolute" / playback_test.mbt: "playback key changes" |
+| δ=0 の絶対キーは原文綴りを尊重（`[key: C#]` → C#） | transpose_test.mbt: "transpose key change spelling preserved" |
+| 相対転調の正準 12 キー表スペリング（E +1 → F、F# +2 → Ab） | transpose_test.mbt: "transpose key change canonical spelling" |
+| ウィジェット両パネルのチップ（実音 = 解決後 `Key A♭ (+1)`、ディグリー = ソース忠実 `key +1`） | transpose_test.mbt: "widget key change chips" |
+| 転調バッジの描画（.chord-modline / .chord-mod・前置チップ・行末の後置チップ・スコア末尾の宙吊り指示・列数不変） | renderer_test.mbt: "render key change badges" |
+| エラー文書でも正しい転調行は描画され続ける | renderer_test.mbt: "render key change with error lines" |
+| 再生: 転調後の tonic 反映・`%` の実音固定・totalBeats 不変・絶対キーへの δ 適用 | playback_test.mbt: "playback key changes" |
+| エラー行除外でキー領域が「指示なし」として継続する帰結 | playback_test.mbt: "playback key changes" |
+| ブラウザ表示・移調・再生（プレイグラウンド目視） | markdown.mbt フォーク側で JS 再ビルド後に確認（本リポジトリ単体では対象外） |

@@ -18,7 +18,7 @@ pub fn parse_to_json(input : String) -> String {
 ///|
 /// バージョン情報を返す（デバッグ用）
 pub fn get_version() -> String {
-  "1.0.0"
+  "1.1.0"
 }
 
 ///|

@@ -24,6 +24,9 @@ pub enum ParseErrorKind {
   InvalidTempo(String) // 不正な bpm（整数 20-400 以外）
   InvalidTimeSignature(String) // 不正な拍子（ホワイトリスト外）
 
+  // 転調指示のエラー
+  InvalidKeyChange(String) // 不正な転調指示（不正な値・値の欠落・未クローズ）
+
   // 歌詞行のエラー
   TooManyLyricFragments(Int, Int) // (断片数, コード数) 断片がコード数を超過
   OrphanLyricLine // 直前の行がコード行でない歌詞行
@@ -59,6 +62,7 @@ pub fn ParseError::kind_name(self : ParseError) -> String {
     InvalidKey(_) => "InvalidKey"
     InvalidTempo(_) => "InvalidTempo"
     InvalidTimeSignature(_) => "InvalidTimeSignature"
+    InvalidKeyChange(_) => "InvalidKeyChange"
     TooManyLyricFragments(_, _) => "TooManyLyricFragments"
     OrphanLyricLine => "OrphanLyricLine"
   }
@@ -92,8 +96,15 @@ pub fn ParseError::message(self : ParseError) -> String {
     InvalidTempo(t) => "不正な bpm '\{t}'(20〜400 の整数)"
     InvalidTimeSignature(t) =>
       "不正な拍子 '\{t}'(使えるのは 1/2 2/2 2/4 3/4 4/4 5/4 6/4 3/8 6/8 9/8 12/8)"
+    InvalidKeyChange(v) =>
+      "不正な転調指示 '\{v}'(書き方は [key: +2] / [key: F]。相対は半音 1〜11、絶対キーは A〜G + 任意の # / b)"
     TooManyLyricFragments(got, expected) =>
-      "歌詞の断片が多すぎます(\{got} 個。割り当て先は最大 \{expected} 個)"
+      if expected == 0 {
+        // 転調指示行・小節線だけの行など、割り当て先スロットが 0 の行への歌詞
+        "歌詞を割り当てるスロットが直前の行にありません(歌詞行はコード行の直後に書きます。転調指示行には付けられません)"
+      } else {
+        "歌詞の断片が多すぎます(\{got} 個。割り当て先は最大 \{expected} 個)"
+      }
     OrphanLyricLine => "歌詞行(>)は直前にコード行が必要です"
   }
   let token_info = match self.token {
@@ -321,6 +332,16 @@ pub fn invalid_frontmatter_field_error(
 ///|
 pub fn invalid_key_error(key : String, line : Int) -> ParseError {
   { kind: InvalidKey(key), position: None, line: Some(line), token: None }
+}
+
+///|
+pub fn invalid_key_change_error(token : String, pos : Int) -> ParseError {
+  {
+    kind: InvalidKeyChange(token),
+    position: Some(pos),
+    line: None,
+    token: Some(token),
+  }
 }
 
 ///|

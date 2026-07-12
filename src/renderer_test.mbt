@@ -174,3 +174,40 @@ test "inline chord html rejects non-chord tokens" {
   inspect(@chord_language.inline_chord_html("%"), content="")
   inspect(@chord_language.inline_chord_html("NC"), content="")
 }
+
+///|
+/// 転調バッジの描画: 単独行 = 全幅の .chord-modline、インライン = 次セルの
+/// 前置チップ、行末 = 直前セルの後置チップ。スロット・列数は消費しない
+test "render key change badges" {
+  inspect(
+    @chord_language.parse_to_html("[key: +1]\n| 1 4 | [key: F] 5 % |"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:4"><div class="chord-modline"><span class="chord-mod">key +1</span></div><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">I</span><span class="chord-cell chord">IV</span><span class="chord-cell chord chord-cell--bar-before"><span class="chord-mod">key F</span>V</span><span class="chord-cell chord chord-repeat">%</span></div></div>
+    ),
+  )
+  // 行末のインライン指示は最後のセルの後置チップ（段末の予告調号）
+  inspect(
+    @chord_language.parse_to_html("| 1 4 [key: +2] |"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">I</span><span class="chord-cell chord">IV<span class="chord-mod chord-mod--after">key +2</span></span></div></div>
+    ),
+  )
+  // スコア末尾の宙吊り指示も消えずにバッジとして描画される
+  inspect(
+    @chord_language.parse_to_html("1\n[key: +1]"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><span class="chord-cell chord">I</span></div><div class="chord-modline"><span class="chord-mod">key +1</span></div></div>
+    ),
+  )
+}
+
+///|
+/// エラーのある文書でも、正しい転調行はディグリー表示で描画され続ける
+test "render key change with error lines" {
+  inspect(
+    @chord_language.parse_to_html("[key: +1]\n8x"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-modline"><span class="chord-mod">key +1</span></div><div class="chord-line chord-error"><span class="chord-error-msg">不正なディグリー '8'(1〜7 で書きます) — '8x'(2 行目, 位置 0)</span><pre class="chord-error-src">8x</pre></div></div>
+    ),
+  )
+}

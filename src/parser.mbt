@@ -64,8 +64,14 @@ pub fn parse(input : String) -> ParseResult {
       continue
     }
 
-    // セクションラベル: [名前] の単独行
-    if trimmed.length() >= 2 &&
+    // セクションラベル: [名前] の単独行。
+    // ただし中身が key（小文字）+ コロンで始まる行は転調指示（[key: 値]）で
+    // あり、セクションにはしない（下のトークン化パスで KeyTok として解釈する）
+    let trimmed_chars = trimmed.to_array()
+    let is_key_change_line = trimmed.has_prefix("[") &&
+      is_key_change_inner(trimmed_chars, 1, trimmed_chars.length())
+    if !is_key_change_line &&
+      trimmed.length() >= 2 &&
       trimmed.has_prefix("[") &&
       trimmed.has_suffix("]") {
       let name = trimmed
@@ -86,6 +92,20 @@ pub fn parse(input : String) -> ParseResult {
         BarTok => tokens.push(BarLine)
         RepeatTok => tokens.push(Repeat)
         BlankTok => tokens.push(EmptyBeat)
+        KeyTok =>
+          // 転調指示。プレフィックス（[key ... :）に一致したトークンは、
+          // 値が不正・未クローズでも必ず InvalidKeyChange として報告する
+          match parse_key_change_token(pt.text) {
+            Some(kc) => tokens.push(KeyChangeTok(kc))
+            None => {
+              errors.push(
+                invalid_key_change_error(pt.text, 0)
+                .shift_position(pt.col)
+                .with_line(line_number),
+              )
+              line_ok = false
+            }
+          }
         ChordTok =>
           if !parse_chord_token(pt, line_number, tokens, errors) {
             line_ok = false
@@ -186,6 +206,86 @@ fn parse_chord_token(
 }
 
 ///|
+/// 転調指示トークン（[key: 値]）の値を解析する。
+/// - 相対値: ("+" | "-") + 半音数 1〜11（0 と 12 以上は不正）
+/// - 絶対キー: フロントマターの key と同一文法（A〜G + 任意の #/b）
+/// - 空白は [・key・:・値の前後で許容する（[ key : +2 ] も可）
+/// 未クローズ・値の欠落・不正値は None（呼び出し側が InvalidKeyChange にする）
+fn parse_key_change_token(text : String) -> KeyChange? {
+  let chars = text.to_array()
+  let len = chars.length()
+  // [ ... ] の形であること（未クローズは不正）
+  if len < 2 || chars[0] != '[' || chars[len - 1] != ']' {
+    return None
+  }
+  let end = len - 1
+  let mut i = 1
+  while i < end && is_whitespace(chars[i]) {
+    i = i + 1
+  }
+  // プレフィックス key 空白* :（レキサで判定済みだが、この関数単体でも成立させる）
+  if i + 3 > end ||
+    chars[i] != 'k' ||
+    chars[i + 1] != 'e' ||
+    chars[i + 2] != 'y' {
+    return None
+  }
+  i = i + 3
+  while i < end && is_whitespace(chars[i]) {
+    i = i + 1
+  }
+  if i >= end || chars[i] != ':' {
+    return None
+  }
+  i = i + 1
+  // 値（前後の空白を除く）
+  let mut vend = end
+  while i < vend && is_whitespace(chars[i]) {
+    i = i + 1
+  }
+  while vend > i && is_whitespace(chars[vend - 1]) {
+    vend = vend - 1
+  }
+  if i >= vend {
+    return None // 値の欠落（[key:]）
+  }
+  let sb = StringBuilder::new()
+  for k in i..<vend {
+    sb.write_char(chars[k])
+  }
+  let value = sb.to_string()
+  if chars[i] == '+' || chars[i] == '-' {
+    // 相対値: 符号の後は数字のみ
+    if vend - i < 2 {
+      return None
+    }
+    let mut n = 0
+    for k in (i + 1)..<vend {
+      match chars[k] {
+        '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' =>
+          n = n * 10 + (chars[k].to_int() - 48)
+        _ => return None
+      }
+      if n > 11 {
+        return None
+      }
+    }
+    if n < 1 {
+      return None
+    }
+    if chars[i] == '-' {
+      Some(RelativeKey(-n))
+    } else {
+      Some(RelativeKey(n))
+    }
+  } else if is_valid_key(value) {
+    Some(AbsoluteKey(value))
+  } else {
+    None
+  }
+}
+
+///|
 /// 歌詞行（> ...）を断片に分割する。
 /// - 空白区切り。断片中の `_` は表示上のスペース、`_` 単独は「歌詞なし」
 fn parse_lyric_fragments(trimmed : String) -> Array[String?] {
@@ -222,7 +322,7 @@ fn count_lyric_slots(tokens : Array[Token]) -> Int {
   for token in tokens {
     match token {
       Chord(_) | ChordGroup(_) | Repeat | NoChord | EmptyBeat => n = n + 1
-      BarLine => ()
+      BarLine | KeyChangeTok(_) => () // 転調指示はスロットを消費しない
     }
   }
   n
@@ -284,6 +384,7 @@ fn token_to_string(token : Token) -> String {
     Repeat => "Repeat"
     NoChord => "NoChord"
     EmptyBeat => "EmptyBeat"
+    KeyChangeTok(kc) => "KeyChange(" + kc.to_source_text() + ")"
   }
 }
 
@@ -449,6 +550,23 @@ fn token_to_json_value(token : Token) -> Json {
     Repeat => type_only_json("Repeat")
     NoChord => type_only_json("NoChord")
     EmptyBeat => type_only_json("EmptyBeat")
+    KeyChangeTok(kc) => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("KeyChange")
+      let change : Map[String, Json] = {}
+      match kc {
+        RelativeKey(n) => {
+          change["type"] = Json::string("relative")
+          change["semitones"] = Json::number(n.to_double())
+        }
+        AbsoluteKey(k) => {
+          change["type"] = Json::string("absolute")
+          change["key"] = Json::string(k)
+        }
+      }
+      obj["change"] = Json::object(change)
+      Json::object(obj)
+    }
   }
 }
 

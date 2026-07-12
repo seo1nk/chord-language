@@ -199,7 +199,14 @@ pub fn parse_to_playback(input : String, key : String) -> String {
         None => { letter_idx: 0, alter: 0 } // C
       }
   }
-  let tonic_pc = key_pitch_class(key_info)
+  let mut tonic_pc = key_pitch_class(key_info)
+  // キープルダウンの移調量 δ = pc(選択キー) - pc(宣言キー)。
+  // 転調指示（[key: 値]）の絶対キー指定にも一様に適用する（初期キーの差し替え）
+  let declared_pc = match parse_key_name(result.score.key_or_default()) {
+    Some(k) => key_pitch_class(k)
+    None => 0 // C
+  }
+  let delta = ((tonic_pc - declared_pc) % 12 + 12) % 12
   let bpm = result.score.bpm_or_default()
   // 拍子（既定 4/4）から 1 スロット（= 1 小節）の長さとベースの刻みを決める。
   // 長さの単位は 4 分音符（bpm 基準）
@@ -234,8 +241,12 @@ pub fn parse_to_playback(input : String, key : String) -> String {
   let mut last_voicing : (Int, Array[Int])? = None
   let mut last_event : Int? = None
   for line in result.score.lines {
-    let (_, slots, _) = line_slots(line.tokens)
-    for slot in slots {
+    let ls = line_slots(line.tokens)
+    for i, slot in ls.slots {
+      // スロットの直前の転調指示を文書順に適用する（時間・セル番号は消費しない）
+      for kc in ls.keys_before[i] {
+        tonic_pc = apply_key_change_pc(tonic_pc, delta, kc)
+      }
       match slot {
         ChordSlot(node, _) => {
           let (bass, notes) = chord_midi_notes(node, tonic_pc)
@@ -290,6 +301,10 @@ pub fn parse_to_playback(input : String, key : String) -> String {
         EmptySlot(_) => () // || の空セルは時間を持たない（セル番号だけ進む）
       }
       cell = cell + 1
+    }
+    // 行末（最後のスロットより後）の転調指示も次の行へ向けて適用する
+    for kc in ls.trailing_keys {
+      tonic_pc = apply_key_change_pc(tonic_pc, delta, kc)
     }
   }
   // ベーストラック: 拍ごとの刻み（pulse イベント）またはグループ細分の単発。

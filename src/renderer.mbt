@@ -142,53 +142,99 @@ priv enum SlotCell {
 }
 
 ///|
-/// 行のトークンをコードスロット列に変換する。
-/// 返り値: (行頭に小節線があるか, スロット列, 行末に小節線があるか)
-fn line_slots(tokens : Array[Token]) -> (Bool, Array[SlotCell], Bool) {
+/// 行のスロット分解結果。転調指示（[key: 値]）はスロットを消費しないため、
+/// スロット列とは別に「各スロットの直前」「行末（最後のスロットより後）」の
+/// 転調列として保持する（renderer と playback が同一経路で文書順に fold する）
+priv struct LineSlots {
+  leading : Bool // 行頭に小節線があるか
+  slots : Array[SlotCell]
+  trailing : Bool // 行末に小節線があるか
+  keys_before : Array[Array[KeyChange]] // slots[i] の直前の転調指示（slots と同じ長さ）
+  trailing_keys : Array[KeyChange] // 最後のスロットより後（行末）の転調指示
+}
+
+///|
+/// 行のトークンをコードスロット列に変換する
+fn line_slots(tokens : Array[Token]) -> LineSlots {
   let slots : Array[SlotCell] = []
+  let keys_before : Array[Array[KeyChange]] = []
+  let pending_keys : Array[KeyChange] = []
   let mut bar_pending = false
   let mut leading = false
   let mut first = true
+  let push_slot = fn(cell : SlotCell) {
+    slots.push(cell)
+    keys_before.push(pending_keys.copy())
+    pending_keys.clear()
+  }
   for token in tokens {
     match token {
       BarLine => {
         if first {
           leading = true
         } else if bar_pending {
-          slots.push(EmptySlot(true))
+          push_slot(EmptySlot(true))
         } else {
           bar_pending = true
         }
         first = false
       }
       Chord(n) => {
-        slots.push(ChordSlot(n, bar_pending))
+        push_slot(ChordSlot(n, bar_pending))
         bar_pending = false
         first = false
       }
       ChordGroup(nodes) => {
-        slots.push(GroupSlot(nodes, bar_pending))
+        push_slot(GroupSlot(nodes, bar_pending))
         bar_pending = false
         first = false
       }
       Repeat => {
-        slots.push(RepeatSlot(bar_pending))
+        push_slot(RepeatSlot(bar_pending))
         bar_pending = false
         first = false
       }
       NoChord => {
-        slots.push(NcSlot(bar_pending))
+        push_slot(NcSlot(bar_pending))
         bar_pending = false
         first = false
       }
       EmptyBeat => {
-        slots.push(BlankSlot(bar_pending))
+        push_slot(BlankSlot(bar_pending))
         bar_pending = false
         first = false
       }
+      KeyChangeTok(kc) =>
+        // スロットを消費しない。次のスロットの前置（行末なら後置）として保持する。
+        // first にも触れない: 転調指示は行頭の小節線の「leading」判定に対して
+        // 透明で、[key:+2] | 4 | と | 4 | のスロット構造（cursor.cell 数）は一致する
+        pending_keys.push(kc)
     }
   }
-  (leading, slots, bar_pending)
+  {
+    leading,
+    slots,
+    trailing: bar_pending,
+    keys_before,
+    trailing_keys: pending_keys,
+  }
+}
+
+///|
+/// 転調チップ列を書き出す（after = 直前セルへの後置チップ）
+fn write_key_chips(
+  sb : StringBuilder,
+  keys : Array[KeyChange],
+  key_chip : (KeyChange, Bool) -> String,
+  standalone : Bool,
+  after : Bool,
+) -> Unit {
+  for kc in keys {
+    let cls = if after { "chord-mod chord-mod--after" } else { "chord-mod" }
+    sb.write_string("<span class=\"" + cls + "\">")
+    sb.write_string(escape_html(key_chip(kc, standalone)))
+    sb.write_string("</span>")
+  }
 }
 
 ///|
@@ -196,17 +242,32 @@ fn line_slots(tokens : Array[Token]) -> (Bool, Array[SlotCell], Bool) {
 /// スロットはスコア全体で共通の列ラスタ（--chord-cols）に載るため、
 /// 行が違っても同じ位置のコード同士が縦に揃う。
 /// 小節線（|）はスロット境界の縦線として描画される。
+///
+/// 転調チップの描画位置: 単独行（スロットなし）= 全幅の .chord-modline、
+/// インライン = 次のスロットの前置チップ、行末 = 最後のスロットの後置チップ
+/// （段末の予告調号の慣習。スコア末尾の宙吊り指示も消さずに描画される）。
+///
+/// 不変条件: 実音モードの key_chip は KeyCursor を進める副作用を持つため、
+/// チップ → コード（text_of）の文書順で必ず 1 回ずつ評価すること
 fn write_line_html(
   sb : StringBuilder,
   line : Line,
   text_of : (ChordNode) -> String,
+  key_chip : (KeyChange, Bool) -> String,
 ) -> Unit {
-  let (leading, slots, trailing) = line_slots(line.tokens)
+  let ls = line_slots(line.tokens)
+  // 転調指示だけの行（スロットなし）は全幅の転調バッジ行として描画する
+  if ls.slots.is_empty() && ls.trailing_keys.length() > 0 {
+    sb.write_string("<div class=\"chord-modline\">")
+    write_key_chips(sb, ls.trailing_keys, key_chip, true, false)
+    sb.write_string("</div>")
+    return
+  }
   let mut cls = "chord-line"
-  if leading {
+  if ls.leading {
     cls = cls + " chord-line--start-bar"
   }
-  if trailing {
+  if ls.trailing {
     cls = cls + " chord-line--end-bar"
   }
   sb.write_string("<div class=\"" + cls + "\">")
@@ -221,7 +282,14 @@ fn write_line_html(
     lyric_idx = lyric_idx + 1
     frag
   }
-  for slot in slots {
+  let last = ls.slots.length() - 1
+  for i, slot in ls.slots {
+    // 行末の転調指示は最後のスロットの後置チップとして描画する
+    let write_trailing = fn() {
+      if i == last {
+        write_key_chips(sb, ls.trailing_keys, key_chip, false, true)
+      }
+    }
     match slot {
       ChordSlot(node, bar_before) => {
         let color_cls = match node.color {
@@ -232,7 +300,9 @@ fn write_line_html(
         sb.write_string(
           "<span class=\"chord-cell chord" + color_cls + bar_cls + "\">",
         )
+        write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
         sb.write_string(escape_html(text_of(node)))
+        write_trailing()
         write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
       }
@@ -242,6 +312,7 @@ fn write_line_html(
         sb.write_string(
           "<span class=\"chord-cell chord-group" + bar_cls + "\">",
         )
+        write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
         // 歌詞断片が - でグループ数どおりに分割できる場合は各コードに配る
         let member_lyrics : Array[String?] = []
         match lyric_of() {
@@ -263,31 +334,38 @@ fn write_line_html(
               member_lyrics.push(None)
             }
         }
-        for i, node in nodes {
+        for j, node in nodes {
           let color_cls = match node.color {
             Some(c) => " chord--" + c.to_string()
             None => ""
           }
           sb.write_string("<span class=\"chord" + color_cls + "\">")
           sb.write_string(escape_html(text_of(node)))
-          write_lyric_html(sb, member_lyrics[i])
+          write_lyric_html(sb, member_lyrics[j])
           sb.write_string("</span>")
         }
+        write_trailing()
         sb.write_string("</span>")
       }
       RepeatSlot(bar_before) => {
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
         sb.write_string(
-          "<span class=\"chord-cell chord chord-repeat" + bar_cls + "\">%",
+          "<span class=\"chord-cell chord chord-repeat" + bar_cls + "\">",
         )
+        write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
+        sb.write_string("%")
+        write_trailing()
         write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
       }
       NcSlot(bar_before) => {
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
         sb.write_string(
-          "<span class=\"chord-cell chord chord-nc" + bar_cls + "\">N.C.",
+          "<span class=\"chord-cell chord chord-nc" + bar_cls + "\">",
         )
+        write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
+        sb.write_string("N.C.")
+        write_trailing()
         write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
       }
@@ -296,14 +374,19 @@ fn write_line_html(
         sb.write_string(
           "<span class=\"chord-cell chord-cell--blank" + bar_cls + "\">",
         )
+        write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
+        write_trailing()
         write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
       }
       EmptySlot(bar_before) => {
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
         sb.write_string(
-          "<span class=\"chord-cell chord-cell--empty" + bar_cls + "\"></span>",
+          "<span class=\"chord-cell chord-cell--empty" + bar_cls + "\">",
         )
+        write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
+        write_trailing()
+        sb.write_string("</span>")
       }
     }
   }
@@ -337,15 +420,26 @@ fn write_section_html(sb : StringBuilder, sec : SectionLabel) -> Unit {
 
 ///|
 /// スコア全体のスロット列数（グリッドの列ラスタ）を求める
+/// （転調指示はスロットを消費しないため列数に影響しない）
 fn score_slot_cols(ast : ScoreAST) -> Int {
   let mut cols = 1
   for line in ast.lines {
-    let (_, slots, _) = line_slots(line.tokens)
-    if slots.length() > cols {
-      cols = slots.length()
+    let ls = line_slots(line.tokens)
+    if ls.slots.length() > cols {
+      cols = ls.slots.length()
     }
   }
   cols
+}
+
+///|
+/// ディグリータブ用の転調チップのラベル。キー非依存タブのためソース忠実形
+/// （"key +1" / "key F"。相対・絶対で同形式。b は表示層の流儀で ♭ にする）
+fn key_change_degree_label(kc : KeyChange) -> String {
+  match kc {
+    RelativeKey(_) => "key " + kc.to_source_text()
+    AbsoluteKey(k) => "key " + key_display_label(k)
+  }
 }
 
 ///|
@@ -372,8 +466,13 @@ fn write_error_line_html(
 }
 
 ///|
-/// ScoreAST を HTML 文字列に変換する（表示テキスト関数を指定）
-fn render_score_html(ast : ScoreAST, text_of : (ChordNode) -> String) -> String {
+/// ScoreAST を HTML 文字列に変換する（表示テキスト関数と転調チップ関数を指定）。
+/// 行（とその中のチップ・コード）は文書順に 1 回ずつ評価される
+fn render_score_html(
+  ast : ScoreAST,
+  text_of : (ChordNode) -> String,
+  key_chip : (KeyChange, Bool) -> String,
+) -> String {
   let cols = score_slot_cols(ast)
   let sb = StringBuilder::new()
   sb.write_string(
@@ -388,7 +487,7 @@ fn render_score_html(ast : ScoreAST, text_of : (ChordNode) -> String) -> String 
       write_section_html(sb, ast.sections[si])
       si = si + 1
     }
-    write_line_html(sb, line, text_of)
+    write_line_html(sb, line, text_of, key_chip)
   }
   while si < ast.sections.length() {
     write_section_html(sb, ast.sections[si])
@@ -401,7 +500,39 @@ fn render_score_html(ast : ScoreAST, text_of : (ChordNode) -> String) -> String 
 ///|
 /// ScoreAST を HTML 文字列に変換する（ディグリー表示・エラーなしの純粋な描画）
 pub fn render_html(ast : ScoreAST) -> String {
-  render_score_html(ast, chord_display_text)
+  render_score_html(ast, chord_display_text, fn(kc, _standalone) {
+    key_change_degree_label(kc)
+  })
+}
+
+///|
+/// 実音表示のスコア HTML（転調の文書順 fold 込み）。
+/// selected はキープルダウンの選択キー = 初期キーの差し替え。
+/// key_chip が KeyCursor を進める副作用を持つため、write_line_html の
+/// 「チップ → コードの文書順で 1 回ずつ評価する」不変条件に依存している
+fn render_notes_score_html(score : ScoreAST, selected : KeyInfo) -> String {
+  let declared = match parse_key_name(score.key_or_default()) {
+    Some(k) => k
+    None => { letter_idx: 0, alter: 0 } // C
+  }
+  let cursor = KeyCursor::make(selected, declared)
+  render_score_html(score, fn(node) { chord_note_text(node, cursor.current) }, fn(
+    kc,
+    standalone,
+  ) {
+    cursor.apply(kc)
+    let name = key_display_label(key_info_name(cursor.current))
+    if standalone {
+      // 単独行は転調幅を併記（相対のみ。絶対はキー名だけ）
+      match kc {
+        RelativeKey(_) => "Key " + name + " (" + kc.to_source_text() + ")"
+        AbsoluteKey(_) => "Key " + name
+      }
+    } else {
+      // インラインは幅優先でキー名のみ
+      name
+    }
+  })
 }
 
 ///|
@@ -450,7 +581,10 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
       None => ()
     }
     match line_map.get(line_no) {
-      Some(line) => write_line_html(sb, line, chord_display_text)
+      Some(line) =>
+        write_line_html(sb, line, chord_display_text, fn(kc, _standalone) {
+          key_change_degree_label(kc)
+        })
       None => ()
     }
     match err_map.get(line_no) {
@@ -504,10 +638,7 @@ pub fn parse_to_notes_html(input : String, key : String) -> String {
     return render_result_html(input, result)
   }
   match parse_key_name(key) {
-    Some(key_info) =>
-      render_score_html(result.score, fn(node) {
-        chord_note_text(node, key_info)
-      })
+    Some(key_info) => render_notes_score_html(result.score, key_info)
     None => render_html(result.score)
   }
 }

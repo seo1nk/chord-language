@@ -40,6 +40,23 @@ pub enum Token {
   Repeat // %（直前のコードの反復）
   NoChord // NC / N.C.（コードなし）
   EmptyBeat // _（空の拍。スロットを占有し歌詞を割り当てられる）
+  KeyChangeTok(KeyChange) // [key: 値]（転調指示。スロット・歌詞・時間を消費しない）
+}
+
+///|
+/// 転調指示（[key: 値]）の値。以降（文書順）のディグリーの解釈キーを変える
+pub enum KeyChange {
+  RelativeKey(Int) // 相対（半音数 -11〜-1, +1〜+11。現在キーからの合成）
+  AbsoluteKey(String) // 絶対キー名（"F" "Eb" など。フロントマターの key と同一文法で検証済み）
+}
+
+///|
+/// KeyChange をソース表記のテキストにする（"+2" / "-3" / "F" など。表示・デバッグ用）
+pub fn KeyChange::to_source_text(self : KeyChange) -> String {
+  match self {
+    RelativeKey(n) => if n > 0 { "+" + n.to_string() } else { n.to_string() }
+    AbsoluteKey(k) => k
+  }
 }
 
 ///|

@@ -2,7 +2,7 @@
 
 数字ディグリー記譜法（ナッシュビル・ナンバー・システム系）のコード譜 DSL。MoonBit 製のパーサ・HTML レンダラ・移調エンジン・再生スケジューラを含み、JS ターゲットにコンパイルしてブラウザで使う。
 
-仕様書: [docs/chord.md](docs/chord.md)（v1.0）
+仕様書: [docs/chord.md](docs/chord.md)（v1.1）
 
 ## 記法の例
 
@@ -19,7 +19,7 @@ bpm: 96
 
 - ディグリー（`1`〜`7`、シャープは `#`/`s`、フラットは `b`）+ クオリティ・セブンス（`M7`/`maj7`）・テンション・スラッシュベース
 - `|` 小節線、`%` 反復、`_` 空拍、`NC`、`-` グループ（1 スロット複数コード）、`@red` 強調色
-- `[名前]` セクションラベル、`>` ペア歌詞行
+- `[名前]` セクションラベル、`>` ペア歌詞行、`[key: +1]` / `[key: F]` 転調指示（単独行・インライン両対応）
 - フロントマターで `key` / `bpm` / `time`（拍子）
 
 ## 公開 API（JS ターゲット）
@@ -53,7 +53,7 @@ Markdown への統合（`:::` ブロック）は [seo1nk/markdown.mbt](https://g
 
 ## ドキュメント
 
-- [docs/chord.md](docs/chord.md) — 言語仕様（v1.0）
+- [docs/chord.md](docs/chord.md) — 言語仕様（v1.1）
 - [docs/api.md](docs/api.md) — API 仕様書（公開 API と Markdown 側からの呼び方）
 - [docs/spec-test-matrix.md](docs/spec-test-matrix.md) — 仕様とテストの対応表
 - [docs/roadmap.md](docs/roadmap.md) / [docs/development-plan.md](docs/development-plan.md) — 開発ロードマップ（歴史的文書）

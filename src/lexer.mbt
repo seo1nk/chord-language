@@ -5,6 +5,7 @@ priv enum PosTokenKind {
   BarTok // |
   RepeatTok // %（反復記号）
   BlankTok // _（空の拍）
+  KeyTok // [key: 値]（転調指示。値が不正・未クローズでも拾い、InvalidKeyChange にする）
 }
 
 ///|
@@ -50,6 +51,40 @@ fn tokenize_line(line : String) -> Array[PosToken] {
       i = i + 1
       continue
     }
+    if c == '[' {
+      // 転調指示トークン: トークン先頭の [ のみブラケット開始になり、
+      // 内容が key（小文字）+ コロンで始まる場合だけ [ ... ] を 1 トークンにする。
+      // それ以外の [ は従来どおり通常のトークン文字（[A] 1 4 → InvalidDegree を保存）
+      let mut close = -1
+      let mut j = i + 1
+      while j < len {
+        if chars[j] == ']' {
+          close = j
+          break
+        }
+        j = j + 1
+      }
+      if close >= 0 && is_key_change_inner(chars, i + 1, close) {
+        let sb = StringBuilder::new()
+        for k in i..<(close + 1) {
+          sb.write_char(chars[k])
+        }
+        tokens.push({ text: sb.to_string(), col: i, kind: KeyTok })
+        i = close + 1
+        continue
+      }
+      if close < 0 && is_key_change_inner(chars, i + 1, len) {
+        // 未クローズの転調指示: 行末までを 1 トークンとして拾う
+        // （InvalidKeyChange として 1 件のエラーで報告するため）
+        let sb = StringBuilder::new()
+        for k in i..<len {
+          sb.write_char(chars[k])
+        }
+        tokens.push({ text: sb.to_string(), col: i, kind: KeyTok })
+        i = len
+        continue
+      }
+    }
     // コードトークン: 括弧深度を追跡し、深度 0 の空白・|・%・_ で終了
     let start = i
     let sb = StringBuilder::new()
@@ -72,6 +107,29 @@ fn tokenize_line(line : String) -> Array[PosToken] {
     tokens.push({ text: sb.to_string(), col: start, kind: ChordTok })
   }
   tokens
+}
+
+///|
+/// ブラケットの内側（chars[start..end)）が転調指示のプレフィックス
+/// （空白* "key" 空白* ":"）で始まるかを判定する。
+/// プレフィックスに一致したブラケットは値が不正でも転調指示として扱う
+/// （タイポが黙ってセクションバッジ化する事故を防ぐ）。大文字の Key は不一致
+fn is_key_change_inner(chars : Array[Char], start : Int, end : Int) -> Bool {
+  let mut i = start
+  while i < end && is_whitespace(chars[i]) {
+    i = i + 1
+  }
+  if i + 3 > end ||
+    chars[i] != 'k' ||
+    chars[i + 1] != 'e' ||
+    chars[i + 2] != 'y' {
+    return false
+  }
+  i = i + 3
+  while i < end && is_whitespace(chars[i]) {
+    i = i + 1
+  }
+  i < end && chars[i] == ':'
 }
 
 ///|

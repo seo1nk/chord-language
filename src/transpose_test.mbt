@@ -124,3 +124,77 @@ test "widget places enharmonic key in its slot" {
   assert_true(html2.contains("<option value=\"Gb\" selected>G♭</option>"))
   assert_true(!html2.contains("value=\"F#\""))
 }
+
+///|
+/// 転調: 単独行（ラスサビ +1）— 以降のディグリーが新キー基準になる
+test "transpose key change standalone" {
+  inspect(
+    @chord_language.parse_to_notes_html("1 4\n[key: +1]\n1 4", "C"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line"><span class="chord-cell chord">C</span><span class="chord-cell chord">F</span></div><div class="chord-modline"><span class="chord-mod">Key D♭ (+1)</span></div><div class="chord-line"><span class="chord-cell chord">D♭</span><span class="chord-cell chord">G♭</span></div></div>
+    ),
+  )
+}
+
+///|
+/// 転調: インライン（2 小節ごと +2 の合成。C → D → E）
+test "transpose key change inline" {
+  inspect(
+    @chord_language.parse_to_notes_html(
+      "| 1 | [key: +2] 1 | [key: +2] 1 |", "C",
+    ),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:3"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">C</span><span class="chord-cell chord chord-cell--bar-before"><span class="chord-mod">D</span>D</span><span class="chord-cell chord chord-cell--bar-before"><span class="chord-mod">E</span>E</span></div></div>
+    ),
+  )
+}
+
+///|
+/// プルダウン移調 = 初期キーの差し替え: δ は文中の絶対キー指定にも一様に適用
+/// （宣言 C・選択 D → δ=+2。[key: F] は実効 G になる）
+test "transpose key change delta on absolute" {
+  inspect(
+    @chord_language.parse_to_notes_html("---\nkey: C\n---\n1\n[key: F]\n1", "D"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><span class="chord-cell chord">D</span></div><div class="chord-modline"><span class="chord-mod">Key G</span></div><div class="chord-line"><span class="chord-cell chord">G</span></div></div>
+    ),
+  )
+}
+
+///|
+/// δ=0 の絶対キー指定は原文の綴りを尊重する（C# は Db に正規化しない）
+test "transpose key change spelling preserved" {
+  inspect(
+    @chord_language.parse_to_notes_html("[key: C#]\n1", "C"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-modline"><span class="chord-mod">Key C#</span></div><div class="chord-line"><span class="chord-cell chord">C#</span></div></div>
+    ),
+  )
+}
+
+///|
+/// 相対転調のスペリングは正準 12 キー表（E +1 → F、F# +2 → Ab）
+test "transpose key change canonical spelling" {
+  inspect(
+    @chord_language.parse_to_notes_html("1\n[key: +1]\n1", "E"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><span class="chord-cell chord">E</span></div><div class="chord-modline"><span class="chord-mod">Key F (+1)</span></div><div class="chord-line"><span class="chord-cell chord">F</span></div></div>
+    ),
+  )
+  inspect(
+    @chord_language.parse_to_notes_html("1\n[key: +2]\n1", "F#"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><span class="chord-cell chord">F#</span></div><div class="chord-modline"><span class="chord-mod">Key A♭ (+2)</span></div><div class="chord-line"><span class="chord-cell chord">A♭</span></div></div>
+    ),
+  )
+}
+
+///|
+/// ウィジェット: 実音パネルは解決後キーのチップ、ディグリーパネルはソース忠実形
+test "widget key change chips" {
+  let html = @chord_language.render_widget_html(
+    "---\nkey: G\n---\n1\n[key: +1]\n1",
+  )
+  assert_true(html.contains("Key A♭ (+1)")) // 実音パネル（G +1 → Ab）
+  assert_true(html.contains("key +1")) // ディグリーパネル
+}

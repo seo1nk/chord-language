@@ -1040,3 +1040,113 @@ test "error on quartal with extras" {
     _ => fail("Expected ChordGroup")
   }
 }
+
+///|
+/// 転調指示: 単独行・インライン・空白バリエーション・JSON
+test "parse key changes" {
+  // 単独行（相対）はセクションではなく KeyChangeTok 1 つの行になる
+  let score = parse_ok("[key: +1]\n| 1 4 |")
+  assert_eq(score.sections.length(), 0)
+  assert_eq(score.lines.length(), 2)
+  match score.lines[0].tokens[0] {
+    @chord_language.KeyChangeTok(@chord_language.RelativeKey(1)) => () // OK
+    _ => fail("Expected KeyChangeTok(RelativeKey(1))")
+  }
+  // 絶対キー・負の相対・空白バリエーション
+  match parse_ok("[key: F]").lines[0].tokens[0] {
+    @chord_language.KeyChangeTok(@chord_language.AbsoluteKey("F")) => () // OK
+    _ => fail("Expected AbsoluteKey(F)")
+  }
+  match parse_ok("[ key : -2 ]").lines[0].tokens[0] {
+    @chord_language.KeyChangeTok(@chord_language.RelativeKey(-2)) => () // OK
+    _ => fail("Expected RelativeKey(-2)")
+  }
+  match parse_ok("[key:Eb]").lines[0].tokens[0] {
+    @chord_language.KeyChangeTok(@chord_language.AbsoluteKey("Eb")) => () // OK
+    _ => fail("Expected AbsoluteKey(Eb)")
+  }
+  // 有効範囲の境界値（±1・±11 は有効。0 と ±12 は "key change errors" 側で検査）
+  match parse_ok("[key: +11]").lines[0].tokens[0] {
+    @chord_language.KeyChangeTok(@chord_language.RelativeKey(11)) => () // OK
+    _ => fail("Expected RelativeKey(11)")
+  }
+  match parse_ok("[key: -11]").lines[0].tokens[0] {
+    @chord_language.KeyChangeTok(@chord_language.RelativeKey(-11)) => () // OK
+    _ => fail("Expected RelativeKey(-11)")
+  }
+  match parse_ok("[key: -1]").lines[0].tokens[0] {
+    @chord_language.KeyChangeTok(@chord_language.RelativeKey(-1)) => () // OK
+    _ => fail("Expected RelativeKey(-1)")
+  }
+  // インラインはスロットを消費せず、歌詞の割り当てにも影響しない
+  let score2 = parse_ok("| 4 5 | [key: +2] 4 5 |\n> あ い う え")
+  assert_eq(score2.lines[0].lyrics.length(), 4)
+  @debug.assert_eq(score2.lines[0].lyrics[2], Some("う"))
+  // JSON 形状: { type: "KeyChange", change: { type, semitones | key } }
+  let json = parse_ok("[key: +1]").to_json()
+  assert_true(json.contains("\"type\": \"KeyChange\""))
+  assert_true(json.contains("\"relative\""))
+  assert_true(json.contains("\"semitones\": 1"))
+  assert_true(parse_ok("[key: F]").to_json().contains("\"absolute\""))
+  // 大文字の [Key: F] は従来どおりセクションラベル
+  let score3 = parse_ok("[Key: F]")
+  assert_eq(score3.sections.length(), 1)
+  assert_eq(score3.lines.length(), 0)
+  // 識別子が key でなければセクション（[keys: 1]）
+  assert_eq(parse_ok("[keys: 1]").sections.length(), 1)
+}
+
+///|
+/// 転調指示のエラー: プレフィックスに一致したら値が不正でも InvalidKeyChange
+test "key change errors" {
+  for
+    src in [
+      "[key: +0]", "[key: +12]", "[key: H]", "[key:]", "[key: g]", "[key: +2x]",
+    ] {
+    let r = @chord_language.parse(src)
+    assert_eq(r.errors.length(), 1)
+    match r.errors[0].kind {
+      @chord_language.InvalidKeyChange(_) => () // OK
+      _ => fail("Expected InvalidKeyChange for " + src)
+    }
+    assert_eq(r.score.lines.length(), 0) // エラー行は除外
+    assert_eq(r.score.sections.length(), 0) // セクションバッジ化もしない
+  }
+  // 未クローズ
+  let r2 = @chord_language.parse("[key:+2")
+  match r2.errors[0].kind {
+    @chord_language.InvalidKeyChange(_) => () // OK
+    _ => fail("Expected InvalidKeyChange for unclosed")
+  }
+  // インラインの位置情報（行内 0-indexed）
+  let r3 = @chord_language.parse("| 1 [key: +13] 4 |")
+  @debug.assert_eq(r3.errors[0].position, Some(4))
+  @debug.assert_eq(r3.errors[0].line, Some(1))
+  // グループの中では使えない（従来どおり InvalidDegree）
+  let r4 = @chord_language.parse("1-[key:+2]5")
+  assert_true(r4.errors.length() > 0)
+  match r4.errors[0].kind {
+    @chord_language.InvalidDegree(_) => () // OK
+    _ => fail("Expected InvalidDegree for group-interior key change")
+  }
+  // トークン先頭以外の [ は従来どおりエラー
+  let r5 = @chord_language.parse("1[key:+2]")
+  assert_true(r5.errors.length() > 0)
+  // key: で始まらないブラケットは従来挙動を保存（[サビ] 1 4 → InvalidDegree）
+  let r6 = @chord_language.parse("[サビ] 1 4")
+  match r6.errors[0].kind {
+    @chord_language.InvalidDegree(_) => () // OK
+    _ => fail("Expected InvalidDegree for non-key bracket in chord line")
+  }
+  // 転調単独行の直後の歌詞行: TooManyLyricFragments の専用メッセージ
+  let r7 = @chord_language.parse("[key: +1]\n> あ")
+  match r7.errors[0].kind {
+    @chord_language.TooManyLyricFragments(1, 0) => () // OK
+    _ => fail("Expected TooManyLyricFragments(1,0) after key change line")
+  }
+  assert_true(
+    r7.errors[0]
+    .message()
+    .contains("転調指示行には付けられません"),
+  )
+}

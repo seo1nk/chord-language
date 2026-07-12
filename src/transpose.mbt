@@ -121,3 +121,90 @@ fn chord_note_text(node : ChordNode, key : KeyInfo) -> String {
 fn key_pitch_class(key : KeyInfo) -> Int {
   (letter_semitone(key.letter_idx) + key.alter + 12) % 12
 }
+
+///|
+/// KeyInfo をキー名（"C" "F#" "Bb" など）に戻す（表示用）
+fn key_info_name(key : KeyInfo) -> String {
+  let alter_str = match key.alter {
+    1 => "#"
+    -1 => "b"
+    0 => ""
+    n => if n > 0 { "#".repeat(n) } else { "b".repeat(-n) }
+  }
+  letter_name(key.letter_idx) + alter_str
+}
+
+///|
+/// 正準 12 キー表（ピッチクラス 0-11 → キー名）。
+/// キープルダウンの一覧（widget_keys）と、相対転調・移調後の絶対キーの
+/// スペリングの**単一ソース**（表記は一般的なジャズチャート流儀:
+/// フラット側は Db/Eb/Ab/Bb、F#/Gb はシャープ側を採用。二重定義しないこと）
+fn canonical_key_names() -> Array[String] {
+  ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+}
+
+///|
+/// ピッチクラスを正準 12 キー表のキーに解決する
+fn canonical_key_info(pc : Int) -> KeyInfo {
+  match parse_key_name(canonical_key_names()[(pc % 12 + 12) % 12]) {
+    Some(k) => k
+    None => { letter_idx: 0, alter: 0 } // 正準表は常にパース可能（保険）
+  }
+}
+
+///|
+/// 文書順の転調（[key: 値]）を畳み込むキーカーソル。
+/// - current: 現在の実効キー（実音スペリングの基準）
+/// - delta: キープルダウンによる移調量（半音）。プルダウンは「初期キーの
+///   差し替え」であり、文中の絶対キー指定にも一様に適用する。
+///   不変量: pc(実効キー) ≡ pc(ソース上のキー) + delta（転調幅は保存される）
+priv struct KeyCursor {
+  mut current : KeyInfo
+  delta : Int
+}
+
+///|
+/// 初期キー（プルダウンの選択キー）と宣言キー（フロントマター）からカーソルを作る
+fn KeyCursor::make(selected : KeyInfo, declared : KeyInfo) -> KeyCursor {
+  let delta = (
+      (key_pitch_class(selected) - key_pitch_class(declared)) % 12 + 12
+    ) %
+    12
+  { current: selected, delta }
+}
+
+///|
+/// 転調指示を 1 つ適用して実効キーを進める。
+/// - 相対: 現在の実効キーに半音数を合成し、正準 12 キー表で綴る
+/// - 絶対: ソースのキーに delta を適用する。delta = 0 なら原文の綴りを尊重し、
+///   移調時（delta ≠ 0）は正準 12 キー表で綴る
+fn KeyCursor::apply(self : KeyCursor, change : KeyChange) -> Unit {
+  match change {
+    RelativeKey(n) =>
+      self.current = canonical_key_info(key_pitch_class(self.current) + n + 12)
+    AbsoluteKey(name) =>
+      match parse_key_name(name) {
+        Some(src) =>
+          if self.delta == 0 {
+            self.current = src
+          } else {
+            self.current = canonical_key_info(key_pitch_class(src) + self.delta)
+          }
+        None => () // 検証済みの絶対キーのみ AST に載るため到達しない
+      }
+  }
+}
+
+///|
+/// ピッチクラスに転調指示を 1 つ適用する（再生用。スペリングは扱わない）。
+/// delta はキープルダウンの移調量で、絶対キー指定にも一様に適用する
+fn apply_key_change_pc(pc : Int, delta : Int, change : KeyChange) -> Int {
+  match change {
+    RelativeKey(n) => ((pc + n) % 12 + 12) % 12
+    AbsoluteKey(name) =>
+      match parse_key_name(name) {
+        Some(k) => (key_pitch_class(k) + delta) % 12
+        None => pc // 検証済みの絶対キーのみ AST に載るため到達しない
+      }
+  }
+}

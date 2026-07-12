@@ -5,10 +5,11 @@
 /// （DOM 構造の契約は docs/api.md §3.5）。
 
 ///|
-/// キープルダウンに載せるキー一覧（12 半音。表記は一般的なジャズチャート流儀:
-/// フラット側は Db/Eb/Ab/Bb、F#/Gb はシャープ側を採用）
+/// キープルダウンに載せるキー一覧（12 半音）。
+/// 正準 12 キー表（transpose.mbt の canonical_key_names）から導出する
+/// （相対転調のスペリングと同じ単一ソース。二重定義しない）
 fn widget_keys() -> Array[String] {
-  ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+  canonical_key_names()
 }
 
 ///|
@@ -64,10 +65,7 @@ pub fn render_widget_html(input : String) -> String {
   let initial_key = result.score.key_or_default()
   let degree_panel = render_html(result.score)
   let notes_panel = match parse_key_name(initial_key) {
-    Some(key_info) =>
-      render_score_html(result.score, fn(node) {
-        chord_note_text(node, key_info)
-      })
+    Some(key_info) => render_notes_score_html(result.score, key_info)
     None => degree_panel
   }
   let sb = StringBuilder::new()
@@ -147,6 +145,12 @@ pub fn chord_css() -> String {
     #|@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chord-widget, :root:not([data-theme="light"]) .chord-score { --chord-bg: #0d1117; } }
     #|.chord-section { grid-column: 1 / -1; justify-self: start; font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; background: currentColor; border-radius: 3px; padding: 0.12em 0.7em; margin-bottom: -0.5em; }
     #|.chord-section-name { color: var(--chord-bg); }
+    #|.chord-modline { grid-column: 1 / -1; justify-self: start; margin-bottom: -0.5em; }
+    #|.chord-mod { display: inline-block; font-size: 0.68em; font-weight: 600; letter-spacing: 0.04em; border: 1px solid currentColor; border-radius: 3px; padding: 0.08em 0.45em; opacity: 0.8; white-space: nowrap; vertical-align: 0.1em; }
+    #|.chord-cell .chord-mod { margin-right: 0.45em; }
+    #|.chord-cell .chord-mod--after { margin-right: 0; margin-left: 0.45em; }
+    #|.chord-modline .chord-mod { font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; padding: 0.12em 0.7em; margin-right: 0.3em; }
+    #|.chord-cell.chord-group > .chord-mod { flex: 0 0 auto; }
     #|.chord-lyric { display: block; font-weight: 400; font-size: 0.72em; letter-spacing: 0; opacity: 0.88; margin-top: 0.15em; white-space: nowrap; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }
@@ -229,6 +233,7 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>2-5</code><span>グループ: 1 スロットを複数コードで分け合う</span>
     #|<div class="chord-cheat-head">構成</div>
     #|<code>[Aメロ]</code><span>セクションラベル（単独行）</span>
+    #|<code>[key: +1] [key: F]</code><span>転調（単独行でもコード行の途中でも）。相対 ±半音 / 絶対キー名。次に書いたコードから効く（% はまたがない）</span>
     #|<code>&gt; ひかりの _ さきへ</code><span>直前のコード行への歌詞。空白 = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース</span>
     #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）</span>
     #|<code>:2m7:</code><span>インラインコード譜（::: の外の本文中に 1 コード。ディグリー表示のみ）</span>

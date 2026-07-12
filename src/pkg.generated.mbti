@@ -24,6 +24,8 @@ pub fn invalid_degree_error(String, String, Int) -> ParseError
 
 pub fn invalid_frontmatter_field_error(String, Int) -> ParseError
 
+pub fn invalid_key_change_error(String, Int) -> ParseError
+
 pub fn invalid_key_error(String, Int) -> ParseError
 
 pub fn invalid_quartal_combination_error(String, Int) -> ParseError
@@ -133,6 +135,12 @@ pub enum Degree {
 pub fn Degree::from_char(Char) -> Self?
 pub fn Degree::to_string(Self) -> String
 
+pub enum KeyChange {
+  RelativeKey(Int)
+  AbsoluteKey(String)
+}
+pub fn KeyChange::to_source_text(Self) -> String
+
 pub struct Line {
   line_number : Int
   tokens : Array[Token]
@@ -170,6 +178,7 @@ pub enum ParseErrorKind {
   InvalidKey(String)
   InvalidTempo(String)
   InvalidTimeSignature(String)
+  InvalidKeyChange(String)
   TooManyLyricFragments(Int, Int)
   OrphanLyricLine
 }
@@ -233,6 +242,7 @@ pub enum Token {
   Repeat
   NoChord
   EmptyBeat
+  KeyChangeTok(KeyChange)
 }
 
 // Type aliases

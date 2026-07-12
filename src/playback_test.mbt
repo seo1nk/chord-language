@@ -137,3 +137,42 @@ test "playback half-diminished dash notation" {
     json2.contains("\"notes\":[62,65,68,72]"),
   )
 }
+
+///|
+/// 転調: 以降のスロットが新キー基準になり、時間・セル番号は不変
+test "playback key changes" {
+  // [key: +2] 以降は D 基準（1 → D F# A = 62,66,69）。時間は消費しない
+  let json = @chord_language.parse_to_playback("1\n[key: +2]\n1", "C")
+  assert_true(json.contains("\"notes\":[60,64,67]"))
+  assert_true(json.contains("\"notes\":[62,66,69]"))
+  assert_true(json.contains("\"totalBeats\":8"))
+  // % は転調をまたいでも直前の響き（実音固定）
+  let json2 = @chord_language.parse_to_playback("| 1 [key: +2] % |", "C")
+  let hits = json2.split("\"notes\":[60,64,67]").to_array().length() - 1
+  assert_eq(hits, 2)
+  // 絶対キー指定にもプルダウンの δ が一様に適用される（宣言 C・選択 D で [key: F] → G）
+  let json3 = @chord_language.parse_to_playback(
+    "---\nkey: C\n---\n1\n[key: F]\n1", "D",
+  )
+  assert_true(json3.contains("\"notes\":[62,66,69]")) // D
+  assert_true(json3.contains("\"notes\":[67,71,74]")) // G
+  // インライン転調を含む行が別エラーで除外されると、以降は指示なしとして継続
+  let json4 = @chord_language.parse_to_playback("1\n[key: +2] 8x\n1", "C")
+  assert_true(!json4.contains("\"notes\":[62,66,69]"))
+  // totalBeats・cursor のセル数は転調指示の有無で不変
+  let with_mod = @chord_language.parse_to_playback(
+    "| 1 4 | [key: +2] 5 1 |", "C",
+  )
+  let without = @chord_language.parse_to_playback("| 1 4 | 5 1 |", "C")
+  assert_true(with_mod.contains("\"totalBeats\":16"))
+  assert_true(without.contains("\"totalBeats\":16"))
+  let count_cells = fn(s : String) {
+    s.split("\"cell\":").to_array().length() - 1
+  }
+  assert_eq(count_cells(with_mod), count_cells(without))
+  // 行頭の転調指示は先頭小節線の leading 判定に対して透明
+  // （[key: +2] || 1 と || 1 でセル数・拍数が変わらない）
+  let with_lead = @chord_language.parse_to_playback("[key: +2] || 1", "C")
+  let without_lead = @chord_language.parse_to_playback("|| 1", "C")
+  assert_eq(count_cells(with_lead), count_cells(without_lead))
+}
