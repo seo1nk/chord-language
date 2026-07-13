@@ -177,7 +177,7 @@ fn parse_chord_token(
     }
     Err(_) => ()
   }
-  let chords : Array[ChordNode] = []
+  let group_parts : Array[GroupPart] = []
   let mut ok = true
   for i, part in parts {
     if part.is_empty() {
@@ -187,9 +187,12 @@ fn parse_chord_token(
         .with_line(line_number),
       )
       ok = false
+    } else if part == "_" {
+      // グループ内の _ = 空きパート(等分割の 1 拍を占有し、直前の響きを伸ばす)
+      group_parts.push(GroupHold)
     } else {
       match parse_chord(part) {
-        Ok(node) => chords.push(node)
+        Ok(node) => group_parts.push(GroupChord(node))
         Err(e) => {
           errors.push(
             e.shift_position(pt.col + offsets[i]).with_line(line_number),
@@ -200,7 +203,7 @@ fn parse_chord_token(
     }
   }
   if ok {
-    tokens.push(ChordGroup(chords))
+    tokens.push(ChordGroup(group_parts))
   }
   ok
 }
@@ -378,8 +381,17 @@ fn line_to_string(line : Line) -> String {
 fn token_to_string(token : Token) -> String {
   match token {
     Chord(node) => "Chord(" + chord_node_to_string(node) + ")"
-    ChordGroup(nodes) =>
-      "ChordGroup(" + nodes.map(chord_node_to_string).join("-") + ")"
+    ChordGroup(parts) =>
+      "ChordGroup(" +
+      parts
+      .map(fn(p) {
+        match p {
+          GroupChord(node) => chord_node_to_string(node)
+          GroupHold => "_"
+        }
+      })
+      .join("-") +
+      ")"
     BarLine => "BarLine"
     Repeat => "Repeat"
     NoChord => "NoChord"
@@ -540,10 +552,18 @@ fn token_to_json_value(token : Token) -> Json {
       obj["chord"] = chord_node_to_json_value(node)
       Json::object(obj)
     }
-    ChordGroup(nodes) => {
+    ChordGroup(parts) => {
       let obj : Map[String, Json] = {}
       obj["type"] = Json::string("ChordGroup")
-      obj["chords"] = Json::array(nodes.map(chord_node_to_json_value))
+      // 空きパート(_)は {"type": "Hold"}。コードは従来どおり ChordNode の形
+      obj["chords"] = Json::array(
+        parts.map(fn(p) {
+          match p {
+            GroupChord(node) => chord_node_to_json_value(node)
+            GroupHold => type_only_json("Hold")
+          }
+        }),
+      )
       Json::object(obj)
     }
     BarLine => type_only_json("BarLine")

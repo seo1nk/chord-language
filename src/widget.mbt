@@ -229,7 +229,7 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>%</code><span>直前のコードを繰り返す</span>
     #|<code>_</code><span>空拍（コードを伸ばす・歌詞だけ置く）</span>
     #|<code>NC</code><span>無音（N.C. も可）</span>
-    #|<code>2-5</code><span>グループ: 1 スロットを複数コードで分け合う</span>
+    #|<code>2-5 5-_-5-6</code><span>グループ: 1 スロットを等分割で分け合う（_ = 空きパート。直前の響きを伸ばす）</span>
     #|<div class="chord-cheat-head">構成</div>
     #|<code>[Aメロ]</code><span>セクションラベル（単独行）</span>
     #|<code>[key: +1] [key: F]</code><span>転調（単独行でもコード行の途中でも）。相対 ±半音 / 絶対キー名。次に書いたコードから効く（% はまたがない）</span>

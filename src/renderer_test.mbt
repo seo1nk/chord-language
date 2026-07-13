@@ -211,3 +211,14 @@ test "render key change with error lines" {
     ),
   )
 }
+
+///|
+/// グループ内の _(空きパート)は空のセルとして間隔だけを占有する
+test "render group holds" {
+  inspect(
+    @chord_language.parse_to_html("| 5-_-5-6 1 |"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord-group"><span class="chord">V</span><span class="chord chord-group-hold"></span><span class="chord">V</span><span class="chord">VI</span></span><span class="chord-cell chord">I</span></div></div>
+    ),
+  )
+}

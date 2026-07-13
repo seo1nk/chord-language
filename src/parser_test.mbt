@@ -751,26 +751,38 @@ test "parse repeat marks" {
 /// - グループ: 1 スロット複数コード
 test "parse dash chord groups" {
   match parse_ok("6m7 2-5").lines[0].tokens[1] {
-    @chord_language.ChordGroup(nodes) => {
-      assert_eq(nodes.length(), 2)
-      match nodes[0].degree {
-        @chord_language.D2 => () // OK
-        _ => fail("Expected degree 2")
+    @chord_language.ChordGroup(parts) => {
+      assert_eq(parts.length(), 2)
+      match parts[0] {
+        @chord_language.GroupChord(node) =>
+          match node.degree {
+            @chord_language.Degree::D2 => () // OK
+            _ => fail("Expected degree 2")
+          }
+        _ => fail("Expected GroupChord")
       }
     }
     _ => fail("Expected ChordGroup")
   }
   // 3 連結と色（個別のコードに付く）
   match parse_ok("1-2m7-5@red").lines[0].tokens[0] {
-    @chord_language.ChordGroup(nodes) => {
-      assert_eq(nodes.length(), 3)
-      match nodes[2].color {
-        Some(@chord_language.Red) => () // OK
-        _ => fail("Expected red on third chord")
+    @chord_language.ChordGroup(parts) => {
+      assert_eq(parts.length(), 3)
+      match parts[2] {
+        @chord_language.GroupChord(node) =>
+          match node.color {
+            Some(@chord_language.Red) => () // OK
+            _ => fail("Expected red on third chord")
+          }
+        _ => fail("Expected GroupChord")
       }
-      match nodes[0].color {
-        None => () // OK
-        _ => fail("Expected no color on first chord")
+      match parts[0] {
+        @chord_language.GroupChord(node) =>
+          match node.color {
+            None => () // OK
+            _ => fail("Expected no color on first chord")
+          }
+        _ => fail("Expected GroupChord")
       }
     }
     _ => fail("Expected ChordGroup")
@@ -781,9 +793,64 @@ test "parse dash chord groups" {
   assert_true(json.contains("chords"))
   // 括弧内の文字は分割されない（テンションは - を含まないが深度追跡の確認）
   match parse_ok("1M7(b9,s11)-5").lines[0].tokens[0] {
-    @chord_language.ChordGroup(nodes) => assert_eq(nodes.length(), 2)
+    @chord_language.ChordGroup(parts) => assert_eq(parts.length(), 2)
     _ => fail("Expected ChordGroup")
   }
+}
+
+///|
+/// グループ内の _(空きパート): 等分割の 1 拍を空きとして占有する
+test "parse group holds" {
+  // 5-_-5-6: 4 等分の 2 拍目が空き
+  match parse_ok("5-_-5-6").lines[0].tokens[0] {
+    @chord_language.ChordGroup(parts) => {
+      assert_eq(parts.length(), 4)
+      match parts[1] {
+        @chord_language.GroupHold => () // OK
+        _ => fail("Expected GroupHold at part 1")
+      }
+      match parts[0] {
+        @chord_language.GroupChord(_) => () // OK
+        _ => fail("Expected GroupChord at part 0")
+      }
+    }
+    _ => fail("Expected ChordGroup")
+  }
+  // 先頭・末尾の空きパートも書ける
+  match parse_ok("_-5").lines[0].tokens[0] {
+    @chord_language.ChordGroup(parts) => {
+      assert_eq(parts.length(), 2)
+      match parts[0] {
+        @chord_language.GroupHold => () // OK
+        _ => fail("Expected leading GroupHold")
+      }
+    }
+    _ => fail("Expected ChordGroup for _-5")
+  }
+  match parse_ok("5-_").lines[0].tokens[0] {
+    @chord_language.ChordGroup(parts) => assert_eq(parts.length(), 2)
+    _ => fail("Expected ChordGroup for 5-_")
+  }
+  // 単独の _ は従来どおり空拍トークン(1_4 は 3 スロット)
+  let score = parse_ok("1_4")
+  assert_eq(score.lines[0].tokens.length(), 3)
+  match score.lines[0].tokens[1] {
+    @chord_language.EmptyBeat => () // OK
+    _ => fail("Expected EmptyBeat")
+  }
+  // JSON 出力: 空きパートは {"type": "Hold"}
+  let json = parse_ok("5-_-6").to_json()
+  assert_true(json.contains("\"type\": \"Hold\""))
+  // 空パートは従来どおりエラー(5-_- は末尾が空)
+  let r = @chord_language.parse("5-_-")
+  assert_true(r.errors.length() > 0)
+  // グループ歌詞の分配は空きパートも 1 パートとして数える
+  let score2 = parse_ok("5-_-6\n> こ-の-み")
+  match score2.lines[0].tokens[0] {
+    @chord_language.ChordGroup(parts) => assert_eq(parts.length(), 3)
+    _ => fail("Expected ChordGroup")
+  }
+  @debug.assert_eq(score2.lines[0].lyrics[0], Some("こ-の-み"))
 }
 
 ///|

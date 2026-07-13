@@ -135,6 +135,11 @@ pub enum Degree {
 pub fn Degree::from_char(Char) -> Self?
 pub fn Degree::to_string(Self) -> String
 
+pub enum GroupPart {
+  GroupChord(ChordNode)
+  GroupHold
+}
+
 pub enum KeyChange {
   RelativeKey(Int)
   AbsoluteKey(String)
@@ -237,7 +242,7 @@ pub enum Tension {
 
 pub enum Token {
   Chord(ChordNode)
-  ChordGroup(Array[ChordNode])
+  ChordGroup(Array[GroupPart])
   BarLine
   Repeat
   NoChord

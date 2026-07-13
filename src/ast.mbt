@@ -32,10 +32,19 @@ pub struct Line {
 }
 
 ///|
+/// グループ(- 連結)の 1 パート。
+/// GroupHold(_)は等分割の 1 拍ぶんを空きとして占有し、直前の響きを伸ばす
+/// (例: 5-_-5-6 = 4 等分の 2 拍目が空き。コードは表示されない)
+pub enum GroupPart {
+  GroupChord(ChordNode)
+  GroupHold // _
+}
+
+///|
 /// 行の要素
 pub enum Token {
   Chord(ChordNode)
-  ChordGroup(Array[ChordNode]) // - で連結された同一スロットのコード列
+  ChordGroup(Array[GroupPart]) // - で連結された同一スロットのパート列(コード | _)
   BarLine
   Repeat // %（直前のコードの反復）
   NoChord // NC / N.C.（コードなし）

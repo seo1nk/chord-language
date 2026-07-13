@@ -424,3 +424,18 @@
 | 再生: 転調後の tonic 反映・`%` の実音固定・totalBeats 不変・絶対キーへの δ 適用 | playback_test.mbt: "playback key changes" |
 | エラー行除外でキー領域が「指示なし」として継続する帰結 | playback_test.mbt: "playback key changes" |
 | ブラウザ表示・移調・再生（プレイグラウンド目視） | markdown.mbt フォーク側で JS 再ビルド後に確認（本リポジトリ単体では対象外） |
+
+---
+
+### 2026-07-13 更新（v1.2: グループ内の空きパート `_`・転調チップの小節上部表示）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| `5-_-5-6`（4 パートの 2 拍目が空き・AST は GroupHold） | parser_test.mbt: "parse group holds" |
+| 先頭・末尾の空きパート（`_-5` / `5-_`） | parser_test.mbt: "parse group holds" |
+| 単独 `_` は従来どおり空拍（`1_4` = 3 スロット） | parser_test.mbt: "parse group holds" |
+| JSON: 空きパートは `{"type": "Hold"}`（`chords` 配列内） | parser_test.mbt: "parse group holds" |
+| 空パート（`5-_-`）は従来どおりエラー | parser_test.mbt: "parse group holds" |
+| 再生: 空きパートは直前の発音を等分割ぶん持続（先頭の空きは前スロットから・無ければ無音） | playback_test.mbt: "playback group holds" |
+| 描画: 空きパートは空セルで間隔だけを占有（ゴールデン） | renderer_test.mbt: "render group holds" |
+| インライン転調チップの小節上部表示（コンパクト形 +1 / F） | renderer_test.mbt: "render key change badges" / transpose_test.mbt（ゴールデン更新） |

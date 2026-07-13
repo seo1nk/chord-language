@@ -2,7 +2,7 @@
 
 chord-language が公開する API と、Markdown 側（markdown.mbt フォーク）からの呼び方を定義する。言語仕様そのものは [chord.md](./chord.md) を参照。
 
-- 対象バージョン: 1.1.0
+- 対象バージョン: 1.2.0
 - JS ビルド成果物: `_build/js/release/build/chord_language.js`（ESM。`moon build --target js --release` で生成）
 
 ## 設計原則
@@ -124,7 +124,7 @@ inline_chord_html("smile");  // => ''
 
 ### `get_version(): string` / `health_check(): string`
 
-パッケージバージョン（`"1.1.0"`）/ 疎通確認（`"OK"`）。
+パッケージバージョン（`"1.2.0"`）/ 疎通確認（`"OK"`）。
 
 ## 2. MoonBit API（パッケージとして import する場合）
 
@@ -136,7 +136,7 @@ inline_chord_html("smile");  // => ''
 | `render_widget_html(input : String) -> String` | SSR で使うのは基本これだけ |
 | `parse_chord(token : String) -> Result[ChordNode, ParseError]` | 単一コード記号のパース（インライン記法の妥当性判定に使える） |
 | `parse_to_html` / `parse_to_notes_html` / `parse_to_playback` / `inline_chord_html` / `chord_cheatsheet_html` / `chord_css` | JS 版と同一 |
-| `ScoreAST` / `Line` / `Token` / `KeyChange` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応。`KeyChange` は v1.1 の転調指示） |
+| `ScoreAST` / `Line` / `Token` / `KeyChange` / `GroupPart` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応。`KeyChange` は v1.1 の転調指示、`GroupPart` は v1.2 のグループパート） |
 
 ---
 

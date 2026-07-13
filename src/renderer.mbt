@@ -134,7 +134,7 @@ fn chord_display_text(node : ChordNode) -> String {
 /// コードスロット（グリッドの1マス）。小節線はスロット境界の縦線として描画する
 priv enum SlotCell {
   ChordSlot(ChordNode, Bool) // (コード, 直前に小節線があるか)
-  GroupSlot(Array[ChordNode], Bool) // - で連結された同一スロットのコード列
+  GroupSlot(Array[GroupPart], Bool) // - で連結された同一スロットのパート列(コード | _)
   RepeatSlot(Bool) // %（直前のコードの反復）
   NcSlot(Bool) // NC / N.C.（コードなし）
   BlankSlot(Bool) // _（空の拍。歌詞を割り当てられる）
@@ -306,43 +306,54 @@ fn write_line_html(
         write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
       }
-      GroupSlot(nodes, bar_before) => {
-        // 1 スロットを複数コードで共有し、等間隔で幅を埋める（八分音符的な拍位置の表現）
+      GroupSlot(group_parts, bar_before) => {
+        // 1 スロットを複数パートで共有し、等間隔で幅を埋める(八分音符的な拍位置の表現)。
+        // 空きパート(_)は空のセルとして間隔だけを占有する(拍位置の表現を保つ)
         let bar_cls = if bar_before { " chord-cell--bar-before" } else { "" }
         sb.write_string(
           "<span class=\"chord-cell chord-group" + bar_cls + "\">",
         )
         write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
-        // 歌詞断片が - でグループ数どおりに分割できる場合は各コードに配る
+        // 歌詞断片が - でグループのパート数どおりに分割できる場合は各パートに配る
+        // (空きパートにも歌詞を置ける — トップレベルの空拍 _ と同じ扱い)
         let member_lyrics : Array[String?] = []
         match lyric_of() {
           Some(text) => {
             let parts = text.split("-").map(fn(v) { v.to_owned() }).to_array()
-            if parts.length() == nodes.length() {
+            if parts.length() == group_parts.length() {
               for part in parts {
                 member_lyrics.push(Some(part))
               }
             } else {
               member_lyrics.push(Some(text))
-              for _i in 1..<nodes.length() {
+              for _i in 1..<group_parts.length() {
                 member_lyrics.push(None)
               }
             }
           }
           None =>
-            for _i in 0..<nodes.length() {
+            for _i in 0..<group_parts.length() {
               member_lyrics.push(None)
             }
         }
-        for j, node in nodes {
-          let color_cls = match node.color {
-            Some(c) => " chord--" + c.to_string()
-            None => ""
+        for j, part in group_parts {
+          match part {
+            GroupChord(node) => {
+              let color_cls = match node.color {
+                Some(c) => " chord--" + c.to_string()
+                None => ""
+              }
+              sb.write_string("<span class=\"chord" + color_cls + "\">")
+              sb.write_string(escape_html(text_of(node)))
+              write_lyric_html(sb, member_lyrics[j])
+              sb.write_string("</span>")
+            }
+            GroupHold => {
+              sb.write_string("<span class=\"chord chord-group-hold\">")
+              write_lyric_html(sb, member_lyrics[j])
+              sb.write_string("</span>")
+            }
           }
-          sb.write_string("<span class=\"chord" + color_cls + "\">")
-          sb.write_string(escape_html(text_of(node)))
-          write_lyric_html(sb, member_lyrics[j])
-          sb.write_string("</span>")
         }
         write_trailing()
         sb.write_string("</span>")

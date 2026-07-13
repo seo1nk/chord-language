@@ -176,3 +176,22 @@ test "playback key changes" {
   let without_lead = @chord_language.parse_to_playback("|| 1", "C")
   assert_eq(count_cells(with_lead), count_cells(without_lead))
 }
+
+///|
+/// グループ内の _(空きパート): 直前の発音を等分割の 1 拍ぶん持続する
+test "playback group holds" {
+  // 5-_-5-6(4/4 で 4 等分): 先頭の 5 が 2 拍に伸び、3 拍目に 5、4 拍目に 6
+  let json = @chord_language.parse_to_playback("5-_-5-6", "C")
+  assert_true(json.contains("\"beat\":0,\"dur\":2"))
+  assert_true(json.contains("\"beat\":2,\"dur\":1"))
+  assert_true(json.contains("\"beat\":3,\"dur\":1"))
+  assert_true(json.contains("\"totalBeats\":4"))
+  // 先頭の空きパートは前のスロットの発音を持続する(1 が 4+2 = 6 拍)
+  let json2 = @chord_language.parse_to_playback("1 _-5", "C")
+  assert_true(json2.contains("\"beat\":0,\"dur\":6"))
+  assert_true(json2.contains("\"beat\":6,\"dur\":2"))
+  // 直前の発音が無い空きパートは無音のまま(_-5 単独 = 後半 2 拍だけ鳴る)
+  let json3 = @chord_language.parse_to_playback("_-5", "C")
+  assert_true(json3.contains("\"beat\":2,\"dur\":2"))
+  assert_true(json3.contains("\"totalBeats\":4"))
+}

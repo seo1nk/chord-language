@@ -256,19 +256,30 @@ pub fn parse_to_playback(input : String, key : String) -> String {
           cursor.push({ beat, dur: slot_beats, cell })
           beat = beat + slot_beats
         }
-        GroupSlot(nodes, _) => {
-          let sub = slot_beats / nodes.length().to_double()
-          for i, node in nodes {
-            let (bass, notes) = chord_midi_notes(node, tonic_pc)
-            events.push({
-              beat: beat + i.to_double() * sub,
-              dur: sub,
-              notes,
-              bass,
-              pulse: false,
-            })
-            last_voicing = Some((bass, notes))
-            last_event = Some(events.length() - 1)
+        GroupSlot(group_parts, _) => {
+          let sub = slot_beats / group_parts.length().to_double()
+          for j, part in group_parts {
+            match part {
+              GroupChord(node) => {
+                let (bass, notes) = chord_midi_notes(node, tonic_pc)
+                events.push({
+                  beat: beat + j.to_double() * sub,
+                  dur: sub,
+                  notes,
+                  bass,
+                  pulse: false,
+                })
+                last_voicing = Some((bass, notes))
+                last_event = Some(events.length() - 1)
+              }
+              GroupHold =>
+                // 空きパート(_): 直前の発音を等分割の 1 拍ぶん持続する
+                // (トップレベルの空拍と同じ。直前が無ければ無音のまま)
+                match last_event {
+                  Some(idx) => events[idx].dur = events[idx].dur + sub
+                  None => ()
+                }
+            }
           }
           cursor.push({ beat, dur: slot_beats, cell })
           beat = beat + slot_beats

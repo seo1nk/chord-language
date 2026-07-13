@@ -46,7 +46,9 @@ fn tokenize_line(line : String) -> Array[PosToken] {
       i = i + 1
       continue
     }
-    if c == '_' {
+    if c == '_' && !(i + 1 < len && chars[i + 1] == '-') {
+      // 単独の空拍。直後に - が続く場合はグループの先頭パート(_-5 など)
+      // なので、ここでは切らずにコードトークンとしてスキャンする
       tokens.push({ text: "_", col: i, kind: BlankTok })
       i = i + 1
       continue
@@ -91,8 +93,12 @@ fn tokenize_line(line : String) -> Array[PosToken] {
     let mut depth = 0
     while i < len {
       let tc = chars[i]
+      // _ は原則トークンを区切るが、グループ区切り - の直後(5-_ など)は
+      // グループの空きパートとしてトークンに含める(トークン先頭の _ は
+      // 上の分岐で「次が -」のときだけここに来るので、切らずに含める)
+      let blank_breaks = tc == '_' && i > start && chars[i - 1] != '-'
       if depth == 0 &&
-        (is_whitespace(tc) || tc == '|' || tc == '%' || tc == '_') {
+        (is_whitespace(tc) || tc == '|' || tc == '%' || blank_breaks) {
         break
       }
       if tc == '(' {
