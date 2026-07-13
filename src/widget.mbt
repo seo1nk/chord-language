@@ -148,6 +148,7 @@ pub fn chord_css() -> String {
     #|.chord-modline { grid-column: 1 / -1; justify-self: start; margin-bottom: -0.5em; }
     #|.chord-mod { display: inline-block; font-size: 0.68em; font-weight: 600; letter-spacing: 0.04em; border: 1px solid currentColor; border-radius: 3px; padding: 0.08em 0.45em; opacity: 0.8; white-space: nowrap; vertical-align: 0.1em; }
     #|.chord-cell .chord-mod { position: absolute; bottom: calc(100% - 0.15em); left: 0.6em; background: var(--chord-bg); z-index: 1; }
+    #|.chord-score:has(.chord-cell .chord-mod) { padding-top: 1.5em; } /* 1 行目の小節上チップがスコア上端(タブ境界・PNG 書き出し範囲)からはみ出さないための余白 */
     #|.chord-cell .chord-mod--after { left: auto; right: 0.75em; }
     #|.chord-modline .chord-mod { font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; padding: 0.12em 0.7em; margin-right: 0.3em; }
     #|.chord-lyric { display: block; font-weight: 400; font-size: 0.72em; letter-spacing: 0; opacity: 0.88; margin-top: 0.15em; white-space: nowrap; }
