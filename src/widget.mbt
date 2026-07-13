@@ -129,7 +129,7 @@ pub fn chord_css() -> String {
     #|.chord-score { display: grid; grid-template-columns: repeat(var(--chord-cols), minmax(max-content, 1fr)); row-gap: 1.35em; line-height: 1.5; padding: 0.6em 0; --chord-cols: 4; --chord-barline: 1.5px solid rgba(136, 136, 136, 0.75); }
     #|.chord-line { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(var(--chord-cols), minmax(max-content, 1fr)); align-items: stretch; }
     #|@supports (grid-template-columns: subgrid) { .chord-line { grid-template-columns: subgrid; } }
-    #|.chord-cell { display: block; padding: 0.25em 0.9em 0.25em 0.75em; min-height: 1.4em; min-width: 0; }
+    #|.chord-cell { display: block; position: relative; padding: 0.25em 0.9em 0.25em 0.75em; min-height: 1.4em; min-width: 0; }
     #|.chord-cell--bar-before { border-left: var(--chord-barline); }
     #|.chord-line--start-bar .chord-cell:first-child { border-left: var(--chord-barline); }
     #|.chord-line--end-bar .chord-cell:last-child { border-right: var(--chord-barline); }
@@ -147,10 +147,9 @@ pub fn chord_css() -> String {
     #|.chord-section-name { color: var(--chord-bg); }
     #|.chord-modline { grid-column: 1 / -1; justify-self: start; margin-bottom: -0.5em; }
     #|.chord-mod { display: inline-block; font-size: 0.68em; font-weight: 600; letter-spacing: 0.04em; border: 1px solid currentColor; border-radius: 3px; padding: 0.08em 0.45em; opacity: 0.8; white-space: nowrap; vertical-align: 0.1em; }
-    #|.chord-cell .chord-mod { margin-right: 0.45em; }
-    #|.chord-cell .chord-mod--after { margin-right: 0; margin-left: 0.45em; }
+    #|.chord-cell .chord-mod { position: absolute; bottom: calc(100% - 0.15em); left: 0.6em; background: var(--chord-bg); z-index: 1; }
+    #|.chord-cell .chord-mod--after { left: auto; right: 0.75em; }
     #|.chord-modline .chord-mod { font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; padding: 0.12em 0.7em; margin-right: 0.3em; }
-    #|.chord-cell.chord-group > .chord-mod { flex: 0 0 auto; }
     #|.chord-lyric { display: block; font-weight: 400; font-size: 0.72em; letter-spacing: 0; opacity: 0.88; margin-top: 0.15em; white-space: nowrap; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }

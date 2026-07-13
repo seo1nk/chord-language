@@ -433,12 +433,18 @@ fn score_slot_cols(ast : ScoreAST) -> Int {
 }
 
 ///|
-/// ディグリータブ用の転調チップのラベル。キー非依存タブのためソース忠実形
-/// （"key +1" / "key F"。相対・絶対で同形式。b は表示層の流儀で ♭ にする）
-fn key_change_degree_label(kc : KeyChange) -> String {
-  match kc {
-    RelativeKey(_) => "key " + kc.to_source_text()
-    AbsoluteKey(k) => "key " + key_display_label(k)
+/// ディグリータブ用の転調チップのラベル。キー非依存タブのためソース忠実形。
+/// 単独行は "key +1" / "key F"、インライン（セル上部のチップ）は小節上の
+/// 限られた幅に収めるコンパクト形 "+1" / "F"（b は表示層の流儀で ♭ にする）
+fn key_change_degree_label(kc : KeyChange, standalone : Bool) -> String {
+  let value = match kc {
+    RelativeKey(_) => kc.to_source_text()
+    AbsoluteKey(k) => key_display_label(k)
+  }
+  if standalone {
+    "key " + value
+  } else {
+    value
   }
 }
 
@@ -500,8 +506,8 @@ fn render_score_html(
 ///|
 /// ScoreAST を HTML 文字列に変換する（ディグリー表示・エラーなしの純粋な描画）
 pub fn render_html(ast : ScoreAST) -> String {
-  render_score_html(ast, chord_display_text, fn(kc, _standalone) {
-    key_change_degree_label(kc)
+  render_score_html(ast, chord_display_text, fn(kc, standalone) {
+    key_change_degree_label(kc, standalone)
   })
 }
 
@@ -582,8 +588,8 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
     }
     match line_map.get(line_no) {
       Some(line) =>
-        write_line_html(sb, line, chord_display_text, fn(kc, _standalone) {
-          key_change_degree_label(kc)
+        write_line_html(sb, line, chord_display_text, fn(kc, standalone) {
+          key_change_degree_label(kc, standalone)
         })
       None => ()
     }
