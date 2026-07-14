@@ -247,6 +247,17 @@ pub fn chord_cheatsheet_html() -> String {
     #|---
     #|| 2m7 5(9) | 1M7 % |
     #|:::</pre>
+    #|<div class="chord-cheat-head">例: 転調と拍分割（Bメロで全音上げ）</div>
+    #|<pre class="chord-cheat-example">:::
+    #|---
+    #|key: C
+    #|---
+    #|[Bメロ]
+    #|| 6m7 4M7 5-_-5-6 |
+    #|&gt; _-そらに むかう _-よう
+    #|[key: +2]
+    #|| 6m7 4M7 | 1M7 % |
+    #|:::</pre>
     #|</div>
   )
 }
