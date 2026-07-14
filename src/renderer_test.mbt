@@ -182,7 +182,7 @@ test "render key change badges" {
   inspect(
     @chord_language.parse_to_html("[key: +1]\n| 1 4 | [key: F] 5 % |"),
     content=(
-      #|<div class="chord-score" style="--chord-cols:4"><div class="chord-modline"><span class="chord-mod">key +1</span></div><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">I</span><span class="chord-cell chord">IV</span><span class="chord-cell chord chord-cell--bar-before"><span class="chord-mod">F</span>V</span><span class="chord-cell chord chord-repeat">%</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:4"><div class="chord-modline"><span class="chord-mod">key +1</span></div><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">I<span class="chord-prevkey">=♭II</span></span><span class="chord-cell chord">IV<span class="chord-prevkey">=#IV</span></span><span class="chord-cell chord chord-cell--bar-before"><span class="chord-mod">F</span>V<span class="chord-prevkey">=VII</span></span><span class="chord-cell chord chord-repeat">%</span></div></div>
     ),
   )
   // 行末のインライン指示は最後のセルの後置チップ（段末の予告調号）
@@ -245,6 +245,26 @@ test "render lyric split mismatched with group" {
     ),
     content=(
       #|<div class="chord-score" style="--chord-cols:3"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">VIm7<span class="chord-lyric"> 空に向か</span></span><span class="chord-cell chord">IVM7<span class="chord-lyric">う木々の</span></span><span class="chord-cell chord-group"><span class="chord">V</span><span class="chord chord-group-hold"></span><span class="chord">V</span><span class="chord">VI</span><span class="chord-lyric chord-lyric--split"><span class="chord-lyric-beat"> </span><span class="chord-lyric-beat">よう</span></span></span></div></div>
+    ),
+  )
+}
+
+///|
+/// 転調前ディグリーの薄表示: チップの付いた小節だけに =V 形式で添える
+/// (次の小節線で解除。単独行の転調は次の行の最初の小節に効く)
+test "render previous-key degrees after modulation" {
+  // key C → +2: 直後の小節の 4, 5 だけ =V, =VI(旧キー C の読み)。次の小節は出ない
+  inspect(
+    @chord_language.parse_to_html("| 1 | [key: +2] 4 5 | 1 |"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:4"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">I</span><span class="chord-cell chord chord-cell--bar-before"><span class="chord-mod">+2</span>IV<span class="chord-prevkey">=V</span></span><span class="chord-cell chord">V<span class="chord-prevkey">=VI</span></span><span class="chord-cell chord chord-cell--bar-before">I</span></div></div>
+    ),
+  )
+  // 単独行の転調 → 次の行の最初の小節に効き、2 小節目からは出ない
+  inspect(
+    @chord_language.parse_to_html("[key: +1]\n| 4M7 5 | 1 |"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:3"><div class="chord-modline"><span class="chord-mod">key +1</span></div><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">IVM7<span class="chord-prevkey">=#IV</span></span><span class="chord-cell chord">V<span class="chord-prevkey">=♭VI</span></span><span class="chord-cell chord chord-cell--bar-before">I</span></div></div>
     ),
   )
 }

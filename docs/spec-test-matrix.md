@@ -441,3 +441,5 @@
 | インライン転調チップの小節上部表示（コンパクト形 +1 / F） | renderer_test.mbt: "render key change badges" / transpose_test.mbt（ゴールデン更新） |
 | 歌詞の拍分割（`_-あいあい` = 後半から・`うえ-_` = 前半のみ。%・_ スロットでも可） | renderer_test.mbt: "render lyric beat split" |
 | グループ歌詞のパート数一致分配・不一致フォールバックは従来どおり（分割しない） | parser_test.mbt: "parse group holds" / renderer_test.mbt: "render sections and lyrics"（既存ゴールデン不変） |
+| 転調直後の小節の転調前ディグリー薄表示(=V。次の小節線で解除・単独行は次行の最初の小節・% 等は非対象) | renderer_test.mbt: "render previous-key degrees after modulation" / "render key change badges" |
+| 再生中の転調チップ点灯(.chord-mod--playing) | markdown.mbt フォーク側ランタイム(chord-widget.ts)+ 実機目視 |

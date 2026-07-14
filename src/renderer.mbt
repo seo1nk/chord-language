@@ -238,6 +238,16 @@ fn write_key_chips(
 }
 
 ///|
+/// 転調前ディグリーの薄表示(=V など。空文字なら何も出さない)
+fn write_prev_key_html(sb : StringBuilder, label : String) -> Unit {
+  if label != "" {
+    sb.write_string("<span class=\"chord-prevkey\">")
+    sb.write_string(escape_html(label))
+    sb.write_string("</span>")
+  }
+}
+
+///|
 /// 1 行分のコード譜をコードスロットのグリッドとして書き出す。
 /// スロットはスコア全体で共通の列ラスタ（--chord-cols）に載るため、
 /// 行が違っても同じ位置のコード同士が縦に揃う。
@@ -254,6 +264,8 @@ fn write_line_html(
   line : Line,
   text_of : (ChordNode) -> String,
   key_chip : (KeyChange, Bool) -> String,
+  prev_of : (ChordNode) -> String,
+  bar_break : () -> Unit,
 ) -> Unit {
   let ls = line_slots(line.tokens)
   // 転調指示だけの行（スロットなし）は全幅の転調バッジ行として描画する
@@ -283,12 +295,26 @@ fn write_line_html(
     frag
   }
   let last = ls.slots.length() - 1
+  // 行頭 = 新しい小節の始まり(転調前ディグリーの薄表示の解除判定)
+  bar_break()
   for i, slot in ls.slots {
     // 行末の転調指示は最後のスロットの後置チップとして描画する
     let write_trailing = fn() {
       if i == last {
         write_key_chips(sb, ls.trailing_keys, key_chip, false, true)
       }
+    }
+    // 小節線をまたいだら薄表示の対象小節を抜ける
+    let slot_bar_before = match slot {
+      ChordSlot(_, b) => b
+      GroupSlot(_, b) => b
+      RepeatSlot(b) => b
+      NcSlot(b) => b
+      BlankSlot(b) => b
+      EmptySlot(b) => b
+    }
+    if slot_bar_before {
+      bar_break()
     }
     match slot {
       ChordSlot(node, bar_before) => {
@@ -302,6 +328,7 @@ fn write_line_html(
         )
         write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
         sb.write_string(escape_html(text_of(node)))
+        write_prev_key_html(sb, prev_of(node))
         write_trailing()
         write_lyric_html(sb, lyric_of())
         sb.write_string("</span>")
@@ -354,6 +381,7 @@ fn write_line_html(
               }
               sb.write_string("<span class=\"chord" + color_cls + "\">")
               sb.write_string(escape_html(text_of(node)))
+              write_prev_key_html(sb, prev_of(node))
               write_plain_lyric_html(sb, member_lyrics[j])
               sb.write_string("</span>")
             }
@@ -412,6 +440,8 @@ fn write_line_html(
       }
     }
   }
+  // 行末 = 小節の終わり(転調バッジ行・行末チップの直後は未消費なので次の行へ持ち越す)
+  bar_break()
   sb.write_string("</div>")
 }
 
@@ -499,6 +529,74 @@ fn key_change_degree_label(kc : KeyChange, standalone : Bool) -> String {
 }
 
 ///|
+/// 旧キー上のディグリー表記（ピッチクラス 0-11 → ローマ数字）。
+/// pc 6 は正準 12 キー表の F#（シャープ側）の選択に合わせて #IV で綴る
+fn prev_degree_label(pc : Int) -> String {
+  [
+    "I", "♭II", "II", "♭III", "III", "IV", "#IV", "V", "♭VI", "VI", "♭VII",
+    "VII",
+  ][(pc % 12 + 12) % 12]
+}
+
+///|
+/// ディグリータブ用の「転調チップ + 転調前ディグリーの薄表示」クロージャ一式。
+/// 転調チップが付いた小節（次の小節線まで）のコードに、転調前のキーで読んだ
+/// ディグリー（ピボットの読み）を =V のように薄く添える。
+/// キープルダウンの δ は新旧キーを同じだけ動かすので、この関係は移調不変
+/// （宣言キー基準の計算でよい）。
+/// 返り値: (key_chip, prev_of, bar_break)。write_line_html が
+/// 「小節境界 → チップ → コード」の文書順で呼ぶことが不変条件
+fn make_degree_chips(
+  declared : String,
+) -> ((KeyChange, Bool) -> String, (ChordNode) -> String, () -> Unit) {
+  let mut cur_pc = match parse_key_name(declared) {
+    Some(k) => key_pitch_class(k)
+    None => 0 // C
+  }
+  let mut old_pc : Int? = None // Some = 転調直後の小節内（転調前のキーの pc）
+  let mut used = false // この小節で薄表示を出したか（出ていれば次の小節境界で解除）
+  let key_chip = fn(kc : KeyChange, standalone : Bool) -> String {
+    // 同じ小節に転調指示が連続する場合は、最初の指示の前のキーを「転調前」に保つ
+    match old_pc {
+      Some(_) =>
+        if used {
+          old_pc = Some(cur_pc)
+          used = false
+        }
+      None => {
+        old_pc = Some(cur_pc)
+        used = false
+      }
+    }
+    cur_pc = apply_key_change_pc(cur_pc, 0, kc)
+    key_change_degree_label(kc, standalone)
+  }
+  let prev_of = fn(node : ChordNode) -> String {
+    match old_pc {
+      Some(op) => {
+        used = true
+        let acc = match node.accidental {
+          Some(Sharp) => 1
+          Some(Flat) => -1
+          None => 0
+        }
+        let rel = ((degree_interval(node.degree) + acc + cur_pc - op) % 12 + 12) %
+          12
+        "=" + prev_degree_label(rel)
+      }
+      None => ""
+    }
+  }
+  let bar_break = fn() -> Unit {
+    if used {
+      old_pc = None
+      used = false
+    }
+  }
+  (key_chip, prev_of, bar_break)
+}
+
+///|
 /// エラー行を HTML として書き出す（行番号つきメッセージ + 該当ソース行）
 fn write_error_line_html(
   sb : StringBuilder,
@@ -528,6 +626,8 @@ fn render_score_html(
   ast : ScoreAST,
   text_of : (ChordNode) -> String,
   key_chip : (KeyChange, Bool) -> String,
+  prev_of : (ChordNode) -> String,
+  bar_break : () -> Unit,
 ) -> String {
   let cols = score_slot_cols(ast)
   let sb = StringBuilder::new()
@@ -543,7 +643,7 @@ fn render_score_html(
       write_section_html(sb, ast.sections[si])
       si = si + 1
     }
-    write_line_html(sb, line, text_of, key_chip)
+    write_line_html(sb, line, text_of, key_chip, prev_of, bar_break)
   }
   while si < ast.sections.length() {
     write_section_html(sb, ast.sections[si])
@@ -556,9 +656,8 @@ fn render_score_html(
 ///|
 /// ScoreAST を HTML 文字列に変換する（ディグリー表示・エラーなしの純粋な描画）
 pub fn render_html(ast : ScoreAST) -> String {
-  render_score_html(ast, chord_display_text, fn(kc, standalone) {
-    key_change_degree_label(kc, standalone)
-  })
+  let (key_chip, prev_of, bar_break) = make_degree_chips(ast.key_or_default())
+  render_score_html(ast, chord_display_text, key_chip, prev_of, bar_break)
 }
 
 ///|
@@ -572,23 +671,27 @@ fn render_notes_score_html(score : ScoreAST, selected : KeyInfo) -> String {
     None => { letter_idx: 0, alter: 0 } // C
   }
   let cursor = KeyCursor::make(selected, declared)
-  render_score_html(score, fn(node) { chord_note_text(node, cursor.current) }, fn(
-    kc,
-    standalone,
-  ) {
-    cursor.apply(kc)
-    let name = key_display_label(key_info_name(cursor.current))
-    if standalone {
-      // 単独行は転調幅を併記（相対のみ。絶対はキー名だけ）
-      match kc {
-        RelativeKey(_) => "Key " + name + " (" + kc.to_source_text() + ")"
-        AbsoluteKey(_) => "Key " + name
+  render_score_html(
+    score,
+    fn(node) { chord_note_text(node, cursor.current) },
+    fn(kc, standalone) {
+      cursor.apply(kc)
+      let name = key_display_label(key_info_name(cursor.current))
+      if standalone {
+        // 単独行は転調幅を併記（相対のみ。絶対はキー名だけ）
+        match kc {
+          RelativeKey(_) => "Key " + name + " (" + kc.to_source_text() + ")"
+          AbsoluteKey(_) => "Key " + name
+        }
+      } else {
+        // インラインは幅優先でキー名のみ
+        name
       }
-    } else {
-      // インラインは幅優先でキー名のみ
-      name
-    }
-  })
+    },
+    // 転調前ディグリーの薄表示はディグリータブ専用(実音タブでは出さない)
+    fn(_node) { "" },
+    fn() {  },
+  )
 }
 
 ///|
@@ -621,6 +724,10 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
   }
   let src_lines = split_lines(input)
   let cols = score_slot_cols(result.score)
+  // ディグリー表示のチップ・転調前ディグリー状態(描画される行だけで fold する)
+  let (key_chip, prev_of, bar_break) = make_degree_chips(
+    result.score.key_or_default(),
+  )
   let sb = StringBuilder::new()
   sb.write_string(
     "<div class=\"chord-score\" style=\"--chord-cols:" +
@@ -638,9 +745,9 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
     }
     match line_map.get(line_no) {
       Some(line) =>
-        write_line_html(sb, line, chord_display_text, fn(kc, standalone) {
-          key_change_degree_label(kc, standalone)
-        })
+        write_line_html(
+          sb, line, chord_display_text, key_chip, prev_of, bar_break,
+        )
       None => ()
     }
     match err_map.get(line_no) {
