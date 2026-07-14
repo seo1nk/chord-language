@@ -179,6 +179,7 @@ pub fn chord_css() -> String {
     #|.chord-cheat-head:first-child { margin-top: 0; }
     #|.chord-cheat-example { grid-column: 1 / -1; margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95em; border: 1px solid #8886; border-radius: 6px; padding: 0.5em 0.8em; background: #8881; user-select: all; }
     #|.chord-cell--playing { background: #8888883d; border-radius: 5px; }
+    #|.chord-mod--playing { background: #8888883d; opacity: 1; } /* 再生カーソルが転調をまたいだ瞬間の点灯(ランタイムが付与) */
     #|.chord-widget[data-chord-active="degree"] .chord-panel--notes { display: none; }
     #|.chord-widget[data-chord-active="notes"] .chord-panel--degree { display: none; }
     #|.chord-widget[data-chord-active="degree"] .chord-key-select { visibility: hidden; }
