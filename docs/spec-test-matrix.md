@@ -439,3 +439,5 @@
 | 再生: 空きパートは直前の発音を等分割ぶん持続（先頭の空きは前スロットから・無ければ無音） | playback_test.mbt: "playback group holds" |
 | 描画: 空きパートは空セルで間隔だけを占有（ゴールデン） | renderer_test.mbt: "render group holds" |
 | インライン転調チップの小節上部表示（コンパクト形 +1 / F） | renderer_test.mbt: "render key change badges" / transpose_test.mbt（ゴールデン更新） |
+| 歌詞の拍分割（`_-あいあい` = 後半から・`うえ-_` = 前半のみ。%・_ スロットでも可） | renderer_test.mbt: "render lyric beat split" |
+| グループ歌詞のパート数一致分配・不一致フォールバックは従来どおり（分割しない） | parser_test.mbt: "parse group holds" / renderer_test.mbt: "render sections and lyrics"（既存ゴールデン不変） |

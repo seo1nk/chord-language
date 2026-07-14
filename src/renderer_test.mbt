@@ -222,3 +222,15 @@ test "render group holds" {
     ),
   )
 }
+
+///|
+/// 歌詞の拍分割: 断片中の - でスロットを等分し、書いた位置から歌詞が始まる
+test "render lyric beat split" {
+  // _-あいあい = 2 等分の後半(3 拍目)から。% や _ のスロットでも同様
+  inspect(
+    @chord_language.parse_to_html("| 1 % |\n> _-あいあい うえ-_"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">I<span class="chord-lyric chord-lyric--split"><span class="chord-lyric-beat"> </span><span class="chord-lyric-beat">あいあい</span></span></span><span class="chord-cell chord chord-repeat">%<span class="chord-lyric chord-lyric--split"><span class="chord-lyric-beat">うえ</span><span class="chord-lyric-beat"> </span></span></span></div></div>
+    ),
+  )
+}

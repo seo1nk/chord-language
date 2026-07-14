@@ -345,12 +345,12 @@ fn write_line_html(
               }
               sb.write_string("<span class=\"chord" + color_cls + "\">")
               sb.write_string(escape_html(text_of(node)))
-              write_lyric_html(sb, member_lyrics[j])
+              write_plain_lyric_html(sb, member_lyrics[j])
               sb.write_string("</span>")
             }
             GroupHold => {
               sb.write_string("<span class=\"chord chord-group-hold\">")
-              write_lyric_html(sb, member_lyrics[j])
+              write_plain_lyric_html(sb, member_lyrics[j])
               sb.write_string("</span>")
             }
           }
@@ -405,13 +405,41 @@ fn write_line_html(
 }
 
 ///|
-/// 歌詞断片をコードの下に書き出す（None は何も出さない）
-fn write_lyric_html(sb : StringBuilder, frag : String?) -> Unit {
+/// 歌詞断片を 1 つの歌詞としてそのまま書き出す（分割しない。None は何も出さない）。
+/// グループの各パートに配られた歌詞と、パート数が合わずまとめて先頭に付く
+/// フォールバック（従来挙動）はこちらを使う
+fn write_plain_lyric_html(sb : StringBuilder, frag : String?) -> Unit {
   match frag {
     Some(text) => {
       sb.write_string("<span class=\"chord-lyric\">")
       sb.write_string(escape_html(text))
       sb.write_string("</span>")
+    }
+    None => ()
+  }
+}
+
+///|
+/// 歌詞断片をコードの下に書き出す（None は何も出さない）。
+/// 断片に `-` が含まれる場合は**拍分割**: スロットを等分した等幅カラムに
+/// 各パートを置く（コード側のグループ `-` と同じ概念。`_-あいあい` なら
+/// 2 等分の後半 = 4/4 の 3 拍目から歌詞が始まる。空きパートは `_` か空で書く）
+fn write_lyric_html(sb : StringBuilder, frag : String?) -> Unit {
+  match frag {
+    Some(text) => {
+      let parts = text.split("-").map(fn(v) { v.to_owned() }).to_array()
+      if parts.length() > 1 {
+        sb.write_string("<span class=\"chord-lyric chord-lyric--split\">")
+        for part in parts {
+          // 空・空白のみ（_ 由来）のパートは空き拍のカラムとして幅だけ占有する
+          sb.write_string("<span class=\"chord-lyric-beat\">")
+          sb.write_string(escape_html(part))
+          sb.write_string("</span>")
+        }
+        sb.write_string("</span>")
+      } else {
+        write_plain_lyric_html(sb, frag)
+      }
     }
     None => ()
   }

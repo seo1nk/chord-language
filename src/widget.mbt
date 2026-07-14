@@ -152,6 +152,8 @@ pub fn chord_css() -> String {
     #|.chord-cell .chord-mod--after { left: auto; right: 0.75em; }
     #|.chord-modline .chord-mod { font-size: 0.78em; font-weight: 700; letter-spacing: 0.06em; padding: 0.12em 0.7em; margin-right: 0.3em; }
     #|.chord-lyric { display: block; font-weight: 400; font-size: 0.72em; letter-spacing: 0; opacity: 0.88; margin-top: 0.15em; white-space: nowrap; }
+    #|.chord-lyric--split { display: flex; } /* 断片中の - による拍分割(等幅カラム) */
+    #|.chord-lyric-beat { flex: 1 1 0; min-width: 0; white-space: nowrap; }
     #|.chord--red { color: #d33636; }
     #|.chord--blue { color: #2563cc; }
     #|.chord--green { color: #1e9e50; }
@@ -234,7 +236,7 @@ pub fn chord_cheatsheet_html() -> String {
     #|<div class="chord-cheat-head">構成</div>
     #|<code>[Aメロ]</code><span>セクションラベル（単独行）</span>
     #|<code>[key: +1] [key: F]</code><span>転調（単独行でもコード行の途中でも）。相対 ±半音 / 絶対キー名。次に書いたコードから効く（% はまたがない）</span>
-    #|<code>&gt; ひかりの _ さきへ</code><span>直前のコード行への歌詞。空白 = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース</span>
+    #|<code>&gt; ひかりの _ _-さきへ</code><span>直前のコード行への歌詞。空白 = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース、- = 拍分割（_-さきへ で後半から）</span>
     #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）</span>
     #|<code>:2m7:</code><span>インラインコード譜（::: の外の本文中に 1 コード。ディグリー表示のみ）</span>
     #|<div class="chord-cheat-head">例: 2-5-1（コピーして試してみてください）</div>
