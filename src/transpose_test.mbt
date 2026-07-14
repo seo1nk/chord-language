@@ -156,7 +156,7 @@ test "transpose key change delta on absolute" {
   inspect(
     @chord_language.parse_to_notes_html("---\nkey: C\n---\n1\n[key: F]\n1", "D"),
     content=(
-      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-line"><span class="chord-cell chord">D</span></div><div class="chord-modline"><span class="chord-mod">Key G</span></div><div class="chord-line"><span class="chord-cell chord">G</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:1"><div class="chord-modline"><span class="chord-mod">Key D</span></div><div class="chord-line"><span class="chord-cell chord">D</span></div><div class="chord-modline"><span class="chord-mod">Key G</span></div><div class="chord-line"><span class="chord-cell chord">G</span></div></div>
     ),
   )
 }

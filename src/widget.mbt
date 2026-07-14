@@ -240,7 +240,7 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>[Aメロ]</code><span>セクションラベル（単独行）</span>
     #|<code>[key: +1] [key: F]</code><span>転調（単独行でもコード行の途中でも）。相対 ±半音 / 絶対キー名。次に書いたコードから効く（% はまたがない）</span>
     #|<code>&gt; ひかりの _ _-さきへ</code><span>直前のコード行への歌詞。空白 = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース、- = 拍分割（_-さきへ で後半から）</span>
-    #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）</span>
+    #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）。キーを宣言すると冒頭にキーチップが出る</span>
     #|<code>:2m7:</code><span>インラインコード譜（::: の外の本文中に 1 コード。ディグリー表示のみ）</span>
     #|<div class="chord-cheat-head">例: 2-5-1（コピーして試してみてください）</div>
     #|<pre class="chord-cheat-example">:::

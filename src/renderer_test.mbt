@@ -81,12 +81,24 @@ test "render multiple errors in one line" {
 }
 
 ///|
-/// フロントマターつき入力の描画（meta は現状表示に影響しない）
+/// フロントマターつき入力の描画。宣言キーは冒頭に初期キーチップとして出る
+/// （key 未宣言なら出さない = 他のテストが暗黙に検証）
 test "render with frontmatter" {
   inspect(
     @chord_language.parse_to_html("---\nkey: G\n---\n1 4 5"),
     content=(
-      #|<div class="chord-score" style="--chord-cols:3"><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IV</span><span class="chord-cell chord">V</span></div></div>
+      #|<div class="chord-score" style="--chord-cols:3"><div class="chord-modline"><span class="chord-mod">key G</span></div><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IV</span><span class="chord-cell chord">V</span></div></div>
+    ),
+  )
+}
+
+///|
+/// 初期キーチップはフラット宣言を ♭ 表示にし、エラー埋め込み時も冒頭に出る
+test "initial key chip with flat and errors" {
+  inspect(
+    @chord_language.parse_to_html("---\nkey: Eb\n---\n1 4\n8x"),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:2"><div class="chord-modline"><span class="chord-mod">key E♭</span></div><div class="chord-line"><span class="chord-cell chord">I</span><span class="chord-cell chord">IV</span></div><div class="chord-line chord-error"><span class="chord-error-msg">不正なディグリー '8'(1〜7 で書きます) — '8x'(5 行目, 位置 0)</span><pre class="chord-error-src">8x</pre></div></div>
     ),
   )
 }

@@ -597,6 +597,30 @@ fn make_degree_chips(
 }
 
 ///|
+/// フロントマターで宣言された初期キー（宣言時のみ Some。既定値 C では出さない）
+fn declared_key(ast : ScoreAST) -> String? {
+  match ast.meta {
+    Some(meta) => meta.key
+    None => None
+  }
+}
+
+///|
+/// 譜面冒頭の初期キーチップ（転調の単独行と同じ全幅 .chord-modline）。
+/// 転調がなくても、フロントマターでキーを宣言した曲は冒頭でキーがわかる
+fn write_initial_key_html(sb : StringBuilder, label : String?) -> Unit {
+  match label {
+    Some(l) =>
+      sb.write_string(
+        "<div class=\"chord-modline\"><span class=\"chord-mod\">" +
+        escape_html(l) +
+        "</span></div>",
+      )
+    None => ()
+  }
+}
+
+///|
 /// エラー行を HTML として書き出す（行番号つきメッセージ + 該当ソース行）
 fn write_error_line_html(
   sb : StringBuilder,
@@ -628,6 +652,7 @@ fn render_score_html(
   key_chip : (KeyChange, Bool) -> String,
   prev_of : (ChordNode) -> String,
   bar_break : () -> Unit,
+  initial_key : String?,
 ) -> String {
   let cols = score_slot_cols(ast)
   let sb = StringBuilder::new()
@@ -636,6 +661,7 @@ fn render_score_html(
     cols.to_string() +
     "\">",
   )
+  write_initial_key_html(sb, initial_key)
   let mut si = 0
   for line in ast.lines {
     while si < ast.sections.length() &&
@@ -657,7 +683,14 @@ fn render_score_html(
 /// ScoreAST を HTML 文字列に変換する（ディグリー表示・エラーなしの純粋な描画）
 pub fn render_html(ast : ScoreAST) -> String {
   let (key_chip, prev_of, bar_break) = make_degree_chips(ast.key_or_default())
-  render_score_html(ast, chord_display_text, key_chip, prev_of, bar_break)
+  // ディグリータブの初期キーチップは宣言の綴りに忠実（"key E♭" 形式）
+  let initial_key = match declared_key(ast) {
+    Some(k) => Some("key " + key_display_label(k))
+    None => None
+  }
+  render_score_html(
+    ast, chord_display_text, key_chip, prev_of, bar_break, initial_key,
+  )
 }
 
 ///|
@@ -671,6 +704,11 @@ fn render_notes_score_html(score : ScoreAST, selected : KeyInfo) -> String {
     None => { letter_idx: 0, alter: 0 } // C
   }
   let cursor = KeyCursor::make(selected, declared)
+  // 実音タブの初期キーチップは実効キー = プルダウンの選択キー（移調に追従）
+  let initial_key = match declared_key(score) {
+    Some(_) => Some("Key " + key_display_label(key_info_name(selected)))
+    None => None
+  }
   render_score_html(
     score,
     fn(node) { chord_note_text(node, cursor.current) },
@@ -691,6 +729,7 @@ fn render_notes_score_html(score : ScoreAST, selected : KeyInfo) -> String {
     // 転調前ディグリーの薄表示はディグリータブ専用(実音タブでは出さない)
     fn(_node) { "" },
     fn() {  },
+    initial_key,
   )
 }
 
@@ -734,6 +773,12 @@ pub fn render_result_html(input : String, result : ParseResult) -> String {
     cols.to_string() +
     "\">",
   )
+  // エラー埋め込み表示でも、宣言キーがあれば冒頭チップは出す（ディグリー形式）
+  let initial_key = match declared_key(result.score) {
+    Some(k) => Some("key " + key_display_label(k))
+    None => None
+  }
+  write_initial_key_html(sb, initial_key)
   if global_errors.length() > 0 {
     write_error_line_html(sb, global_errors, None)
   }
