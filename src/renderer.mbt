@@ -314,15 +314,24 @@ fn write_line_html(
           "<span class=\"chord-cell chord-group" + bar_cls + "\">",
         )
         write_key_chips(sb, ls.keys_before[i], key_chip, false, false)
-        // 歌詞断片が - でグループのパート数どおりに分割できる場合は各パートに配る
-        // (空きパートにも歌詞を置ける — トップレベルの空拍 _ と同じ扱い)
+        // 歌詞断片の割り付け(3 通り):
+        // - `-` の分割数がパート数と一致 → 各パートへ配る(コードの実位置に揃う)
+        // - 一致しないが 2 分割以上 → 他のスロットと同じ「スロット全幅の等分割」
+        //   としてグループの下に描画する(拍分割数はコードと一致しなくてよい)
+        // - `-` を含まない → 先頭のパートにまとめて付く(従来どおり)
         let member_lyrics : Array[String?] = []
+        let mut slot_lyric : String? = None
         match lyric_of() {
           Some(text) => {
             let parts = text.split("-").map(fn(v) { v.to_owned() }).to_array()
             if parts.length() == group_parts.length() {
               for part in parts {
                 member_lyrics.push(Some(part))
+              }
+            } else if parts.length() > 1 {
+              slot_lyric = Some(text)
+              for _i in 0..<group_parts.length() {
+                member_lyrics.push(None)
               }
             } else {
               member_lyrics.push(Some(text))
@@ -355,6 +364,8 @@ fn write_line_html(
             }
           }
         }
+        // パート数と一致しない拍分割の歌詞はグループ全幅の行として折り返す
+        write_lyric_html(sb, slot_lyric)
         write_trailing()
         sb.write_string("</span>")
       }

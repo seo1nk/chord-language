@@ -135,7 +135,8 @@ pub fn chord_css() -> String {
     #|.chord-line--end-bar .chord-cell:last-child { border-right: var(--chord-barline); }
     #|.chord-score .chord { font-weight: 500; font-size: 1.06em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; }
     #|.chord-inline { font-weight: 500; font-size: 0.95em; letter-spacing: 0.015em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif; font-style: normal; white-space: nowrap; background: #8881; border: 1px solid #8883; border-radius: 4px; padding: 0.05em 0.4em; }
-    #|.chord-cell.chord-group { display: flex; align-items: baseline; column-gap: 0.5em; }
+    #|.chord-cell.chord-group { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.5em; }
+    #|.chord-cell.chord-group > .chord-lyric--split { flex: 1 0 100%; } /* パート数と不一致の拍分割歌詞はグループ全幅の行に */
     #|.chord-cell.chord-group > .chord { flex: 1 1 0; min-width: max-content; }
     #|.chord-repeat { opacity: 0.7; }
     #|.chord-nc { opacity: 0.85; }

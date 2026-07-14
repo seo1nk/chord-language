@@ -234,3 +234,17 @@ test "render lyric beat split" {
     ),
   )
 }
+
+///|
+/// 歌詞の拍分割はグループのパート数と一致しなくてよい
+/// (不一致の分割はスロット全幅の等分割として置かれる)
+test "render lyric split mismatched with group" {
+  inspect(
+    @chord_language.parse_to_html(
+      "| 6m7 4M7 5-_-5-6 |\n> _空に向か う木々の _-よう",
+    ),
+    content=(
+      #|<div class="chord-score" style="--chord-cols:3"><div class="chord-line chord-line--start-bar chord-line--end-bar"><span class="chord-cell chord">VIm7<span class="chord-lyric"> 空に向か</span></span><span class="chord-cell chord">IVM7<span class="chord-lyric">う木々の</span></span><span class="chord-cell chord-group"><span class="chord">V</span><span class="chord chord-group-hold"></span><span class="chord">V</span><span class="chord">VI</span><span class="chord-lyric chord-lyric--split"><span class="chord-lyric-beat"> </span><span class="chord-lyric-beat">よう</span></span></span></div></div>
+    ),
+  )
+}
