@@ -190,11 +190,12 @@ test "transpose key change canonical spelling" {
 }
 
 ///|
-/// ウィジェット: 実音パネルは解決後キーのチップ、ディグリーパネルはソース忠実形
+/// ウィジェット: 両パネルとも解決後キー + 転調幅のチップ
+/// （実音は "Key"、ディグリーは初期キーチップに合わせた小文字 "key"）
 test "widget key change chips" {
   let html = @chord_language.render_widget_html(
     "---\nkey: G\n---\n1\n[key: +1]\n1",
   )
   assert_true(html.contains("Key A♭ (+1)")) // 実音パネル（G +1 → Ab）
-  assert_true(html.contains("key +1")) // ディグリーパネル
+  assert_true(html.contains("key A♭ (+1)")) // ディグリーパネル（宣言キー基準で解決）
 }

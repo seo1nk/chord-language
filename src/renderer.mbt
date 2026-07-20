@@ -513,22 +513,6 @@ fn score_slot_cols(ast : ScoreAST) -> Int {
 }
 
 ///|
-/// ディグリータブ用の転調チップのラベル。キー非依存タブのためソース忠実形。
-/// 単独行は "key +1" / "key F"、インライン（セル上部のチップ）は小節上の
-/// 限られた幅に収めるコンパクト形 "+1" / "F"（b は表示層の流儀で ♭ にする）
-fn key_change_degree_label(kc : KeyChange, standalone : Bool) -> String {
-  let value = match kc {
-    RelativeKey(_) => kc.to_source_text()
-    AbsoluteKey(k) => key_display_label(k)
-  }
-  if standalone {
-    "key " + value
-  } else {
-    value
-  }
-}
-
-///|
 /// 旧キー上のディグリー表記（ピッチクラス 0-11 → ローマ数字）。
 /// pc 6 は正準 12 キー表の F#（シャープ側）の選択に合わせて #IV で綴る
 fn prev_degree_label(pc : Int) -> String {
@@ -549,10 +533,14 @@ fn prev_degree_label(pc : Int) -> String {
 fn make_degree_chips(
   declared : String,
 ) -> ((KeyChange, Bool) -> String, (ChordNode) -> String, () -> Unit) {
-  let mut cur_pc = match parse_key_name(declared) {
-    Some(k) => key_pitch_class(k)
-    None => 0 // C
+  let declared_info = match parse_key_name(declared) {
+    Some(k) => k
+    None => { letter_idx: 0, alter: 0 } // C
   }
+  let mut cur_pc = key_pitch_class(declared_info)
+  // チップの表示キー名は実音タブと同じ綴りルールで解決する
+  // （selected = declared なので delta 0。絶対指定は宣言綴りのまま）
+  let cursor = KeyCursor::make(declared_info, declared_info)
   let mut old_pc : Int? = None // Some = 転調直後の小節内（転調前のキーの pc）
   let mut used = false // この小節で薄表示を出したか（出ていれば次の小節境界で解除）
   let key_chip = fn(kc : KeyChange, standalone : Bool) -> String {
@@ -569,7 +557,18 @@ fn make_degree_chips(
       }
     }
     cur_pc = apply_key_change_pc(cur_pc, 0, kc)
-    key_change_degree_label(kc, standalone)
+    cursor.apply(kc)
+    // 実音タブと同じ構成: 単独行 = キー名 + 転調幅(相対のみ)、インライン = キー名
+    // (接頭辞はディグリータブの初期キーチップに合わせて小文字の "key")
+    let name = key_display_label(key_info_name(cursor.current))
+    if standalone {
+      match kc {
+        RelativeKey(_) => "key " + name + " (" + kc.to_source_text() + ")"
+        AbsoluteKey(_) => "key " + name
+      }
+    } else {
+      name
+    }
   }
   let prev_of = fn(node : ChordNode) -> String {
     match old_pc {

@@ -418,7 +418,7 @@
 | プルダウン移調 δ の絶対キーへの一様適用（宣言 C・選択 D で `[key: F]` → G） | transpose_test.mbt: "transpose key change delta on absolute" / playback_test.mbt: "playback key changes" |
 | δ=0 の絶対キーは原文綴りを尊重（`[key: C#]` → C#） | transpose_test.mbt: "transpose key change spelling preserved" |
 | 相対転調の正準 12 キー表スペリング（E +1 → F、F# +2 → Ab） | transpose_test.mbt: "transpose key change canonical spelling" |
-| ウィジェット両パネルのチップ（実音 = 解決後 `Key A♭ (+1)`、ディグリー = ソース忠実 `key +1`） | transpose_test.mbt: "widget key change chips" |
+| ウィジェット両パネルのチップ（実音 = `Key A♭ (+1)`、ディグリー = 宣言キー基準で解決した `key A♭ (+1)` — 2026-07-20 改訂） | transpose_test.mbt: "widget key change chips" |
 | 転調バッジの描画（.chord-modline / .chord-mod・前置チップ・行末の後置チップ・スコア末尾の宙吊り指示・列数不変） | renderer_test.mbt: "render key change badges" |
 | エラー文書でも正しい転調行は描画され続ける | renderer_test.mbt: "render key change with error lines" |
 | 再生: 転調後の tonic 反映・`%` の実音固定・totalBeats 不変・絶対キーへの δ 適用 | playback_test.mbt: "playback key changes" |
@@ -443,3 +443,11 @@
 | グループ歌詞のパート数一致分配・不一致フォールバックは従来どおり（分割しない） | parser_test.mbt: "parse group holds" / renderer_test.mbt: "render sections and lyrics"（既存ゴールデン不変） |
 | 転調直後の小節の転調前ディグリー薄表示(=V。次の小節線で解除・単独行は次行の最初の小節・% 等は非対象) | renderer_test.mbt: "render previous-key degrees after modulation" / "render key change badges" |
 | 再生中の転調チップ点灯(.chord-mod--playing) | markdown.mbt フォーク側ランタイム(chord-widget.ts)+ 実機目視 |
+
+---
+
+### 2026-07-20 更新（ディグリータブの転調チップも解決後キー併記に）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| ディグリータブの転調チップ: 単独行 `key D♭ (+1)`(絶対は `key F`)・インラインはキー名のみ(宣言キー基準・綴りは実音タブと同じ) | renderer_test.mbt: "render key change badges" ほかゴールデン / transpose_test.mbt: "widget key change chips" |
