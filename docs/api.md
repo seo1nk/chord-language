@@ -228,9 +228,14 @@ document.head.appendChild(style);
   <div class="chord-tabs" role="tablist">
     <button class="chord-tab chord-tab--active" data-chord-tab="degree">ディグリー</button>
     <button class="chord-tab" data-chord-tab="notes">コード</button>
-    <select class="chord-key-select">…12 キー…</select>
-    <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
-    <button class="chord-copy-img" aria-label="画像コピー"><svg data-icon="camera">…</svg></button>
+    <div class="chord-tools">              <!-- 右側ツール群(モバイル幅で折り返さない 2 段クラスタ) -->
+      <div class="chord-tools-row">
+        <button class="chord-spell" aria-pressed="false">♯</button>  <!-- ♯/♭綴りトグル(ランタイムが切替) -->
+        <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
+        <button class="chord-copy-img" aria-label="画像コピー"><svg data-icon="camera">…</svg></button>
+      </div>
+      <select class="chord-key-select">…12 キー…</select>
+    </div>
   </div>
   <div class="chord-panel chord-panel--degree"> <div class="chord-score">…</div> </div>
   <div class="chord-panel chord-panel--notes">  <div class="chord-score">…</div> </div>
