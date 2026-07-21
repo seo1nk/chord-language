@@ -84,10 +84,11 @@ pub fn render_widget_html(input : String) -> String {
   sb.write_string(
     "<button type=\"button\" class=\"chord-tab\" data-chord-tab=\"notes\">コード</button>",
   )
-  // 右側ツール群はモバイル幅で折り返さないよう 2 段のクラスタにする
-  // (上段 = ♯/♭トグル・再生・画像コピーのアイコン列、下段 = キープルダウン)
+  // 右側: キー系クラスタ(上段 = ♭/♯トグル、下段 = プルダウン)と、
+  // その外の再生・画像コピー。クラスタはコードタブ専用で、ディグリー
+  // タブでは visibility で場所だけ保持する(バーの高さと再生・コピーの
+  // 位置が両タブで変わらず、ボタンだけが浮いて見えない)
   sb.write_string("<div class=\"chord-tools\">")
-  sb.write_string("<div class=\"chord-tools-row\">")
   // ♭/♯セグメントトグル: キープルダウンの黒鍵 5 スロットの綴りを
   // 一括で切り替える。既定は ♭ 側(= 既定の正準表)がアクティブ。
   // 切り替えの実体はクライアントランタイム(フォーク側 chord-widget.ts)
@@ -99,17 +100,6 @@ pub fn render_widget_html(input : String) -> String {
   )
   sb.write_string(
     "<button type=\"button\" class=\"chord-spell-opt\" data-chord-spell=\"sharp\" aria-pressed=\"false\" title=\"♯表記\">♯</button>",
-  )
-  sb.write_string("</div>")
-  sb.write_string(
-    "<button type=\"button\" class=\"chord-play\" title=\"表示中のキーで再生\" aria-label=\"再生\">" +
-    play_icon_svg +
-    "</button>",
-  )
-  sb.write_string(
-    "<button type=\"button\" class=\"chord-copy-img\" title=\"表示中の譜面を画像としてコピー\" aria-label=\"画像コピー\">" +
-    camera_icon_svg +
-    "</button>",
   )
   sb.write_string("</div>")
   sb.write_string("<select class=\"chord-key-select\" aria-label=\"キー\">")
@@ -126,6 +116,20 @@ pub fn render_widget_html(input : String) -> String {
     )
   }
   sb.write_string("</select>")
+  sb.write_string("</div>")
+  // 再生・画像コピーはクラスタの右隣に縦積み(モバイル幅でも
+  // 1 ボタン分の幅しか使わず折り返さない)
+  sb.write_string("<div class=\"chord-actions\">")
+  sb.write_string(
+    "<button type=\"button\" class=\"chord-play\" title=\"表示中のキーで再生\" aria-label=\"再生\">" +
+    play_icon_svg +
+    "</button>",
+  )
+  sb.write_string(
+    "<button type=\"button\" class=\"chord-copy-img\" title=\"表示中の譜面を画像としてコピー\" aria-label=\"画像コピー\">" +
+    camera_icon_svg +
+    "</button>",
+  )
   sb.write_string("</div>")
   sb.write_string("</div>")
   // パネル
@@ -185,13 +189,12 @@ pub fn chord_css() -> String {
     #|.chord-tab { font: inherit; font-size: 0.78em; padding: 0.3em 1.1em; border: 1.5px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; background: transparent; color: inherit; cursor: pointer; opacity: 0.6; margin-bottom: 0; }
     #|.chord-tab--active { opacity: 1; font-weight: 600; border-color: #88888866; background: var(--chord-bg); margin-bottom: -1.5px; }
     #|.chord-tools { display: flex; flex-direction: column; align-items: stretch; gap: 0.3em; margin-left: auto; align-self: center; margin-bottom: 0.25em; }
-    #|.chord-tools-row { display: flex; gap: 0.4em; }
-    #|.chord-tools-row > button { flex: 1 1 0; }
     #|.chord-key-select { font: inherit; font-size: 0.78em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.05em 0.3em; }
     #|.chord-spell { display: flex; align-items: stretch; border: 1px solid #8886; border-radius: 4px; overflow: hidden; }
     #|.chord-spell-opt { font: inherit; font-size: 0.78em; flex: 1 1 0; background: transparent; color: inherit; border: none; padding: 0.05em 0.4em; cursor: pointer; opacity: 0.5; }
     #|.chord-spell-opt:hover { opacity: 0.85; }
     #|.chord-spell-opt[aria-pressed="true"] { background: #8883; opacity: 1; font-weight: 600; }
+    #|.chord-actions { display: flex; flex-direction: column; align-items: stretch; gap: 0.3em; margin-left: 0.45em; align-self: center; margin-bottom: 0.25em; }
     #|.chord-copy-img, .chord-play { font: inherit; font-size: 0.72em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.1em 0.6em; cursor: pointer; opacity: 0.75; }
     #|.chord-play svg, .chord-copy-img svg { vertical-align: -0.3em; }
     #|.chord-copy-img:hover, .chord-play:hover { opacity: 1; }
@@ -206,7 +209,7 @@ pub fn chord_css() -> String {
     #|.chord-prevkey { font-size: 0.6em; font-weight: 500; opacity: 0.45; margin-left: 0.3em; letter-spacing: 0; } /* 転調直後の小節に添える転調前ディグリー(=V) */
     #|.chord-widget[data-chord-active="degree"] .chord-panel--notes { display: none; }
     #|.chord-widget[data-chord-active="notes"] .chord-panel--degree { display: none; }
-    #|.chord-widget[data-chord-active="degree"] .chord-key-select, .chord-widget[data-chord-active="degree"] .chord-spell { visibility: hidden; }
+    #|.chord-widget[data-chord-active="degree"] .chord-tools { visibility: hidden; }
     #|@media print { .chord-tabs { display: none; } }
   )
 }

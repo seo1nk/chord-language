@@ -228,16 +228,16 @@ document.head.appendChild(style);
   <div class="chord-tabs" role="tablist">
     <button class="chord-tab chord-tab--active" data-chord-tab="degree">ディグリー</button>
     <button class="chord-tab" data-chord-tab="notes">コード</button>
-    <div class="chord-tools">              <!-- 右側ツール群(モバイル幅で折り返さない 2 段クラスタ) -->
-      <div class="chord-tools-row">
-        <div class="chord-spell" role="group">   <!-- ♭/♯綴りのセグメントトグル(既定 ♭。ランタイムが切替) -->
-          <button class="chord-spell-opt" data-chord-spell="flat" aria-pressed="true">♭</button>
-          <button class="chord-spell-opt" data-chord-spell="sharp" aria-pressed="false">♯</button>
-        </div>
-        <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
-        <button class="chord-copy-img" aria-label="画像コピー"><svg data-icon="camera">…</svg></button>
+    <div class="chord-tools">              <!-- キー系クラスタ(縦 2 段。ディグリータブでは visibility hidden で場所だけ保持) -->
+      <div class="chord-spell" role="group">   <!-- ♭/♯綴りのセグメントトグル(既定 ♭。ランタイムが切替) -->
+        <button class="chord-spell-opt" data-chord-spell="flat" aria-pressed="true">♭</button>
+        <button class="chord-spell-opt" data-chord-spell="sharp" aria-pressed="false">♯</button>
       </div>
       <select class="chord-key-select">…12 キー…</select>
+    </div>
+    <div class="chord-actions">            <!-- 再生・画像コピーの縦積み(両タブで常に同じ位置) -->
+      <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
+      <button class="chord-copy-img" aria-label="画像コピー"><svg data-icon="camera">…</svg></button>
     </div>
   </div>
   <div class="chord-panel chord-panel--degree"> <div class="chord-score">…</div> </div>
