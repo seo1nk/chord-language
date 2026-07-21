@@ -102,9 +102,13 @@ fn degree_note_name(
   }
   // ダブル以上のアクシデンタルは理論綴りのままだと読めない
   // （Db の b6 = B♭♭ など）ので、正準 12 キー表の異名同音で
-  // 単純な綴りに直す（B♭♭ → A）。シングルまでは理論綴りを保つ
+  // 単純な綴りに直す（B♭♭ → A）。シングルまでは理論綴りを保つ。
+  // 黒鍵に落ちる場合の綴りはキーの綴り優先度に従う
   if alt > 1 || alt < -1 {
-    let simple = canonical_key_info(letter_semitone(letter) + alt)
+    let simple = canonical_key_info_pref(
+      letter_semitone(letter) + alt + 12,
+      spelling_pref(key),
+    )
     return letter_name(simple.letter_idx) + alter_display(simple.alter)
   }
   letter_name(letter) + alter_display(alt)
@@ -151,6 +155,51 @@ fn canonical_key_names() -> Array[String] {
 }
 
 ///|
+/// ♯側・♭側に統一した 12 キー表。既定表と綴りが違うキー
+/// （C#・Gb など）が選ばれたとき、転調先をその向きで綴るために使う
+fn canonical_key_names_sharp() -> Array[String] {
+  ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+}
+
+///|
+fn canonical_key_names_flat() -> Array[String] {
+  ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
+}
+
+///|
+/// 綴り優先度つきの正準キー解決（pref > 0 = ♯側、pref < 0 = ♭側、0 = 既定表）
+fn canonical_key_info_pref(pc : Int, pref : Int) -> KeyInfo {
+  let names = if pref > 0 {
+    canonical_key_names_sharp()
+  } else if pref < 0 {
+    canonical_key_names_flat()
+  } else {
+    canonical_key_names()
+  }
+  match parse_key_name(names[(pc % 12 + 12) % 12]) {
+    Some(k) => k
+    None => { letter_idx: 0, alter: 0 } // 正準表は常にパース可能（保険）
+  }
+}
+
+///|
+/// 選択キーの綴りから転調先の綴り優先度を導く。既定表と同じ綴りなら 0
+/// （従来どおり既定表）、あえて異名同音側を選んだときだけその向きに従う
+/// （C# 選択 → ♯側、Gb 選択 → ♭側）
+fn spelling_pref(key : KeyInfo) -> Int {
+  let canonical = canonical_key_info(key_pitch_class(key))
+  if canonical.letter_idx == key.letter_idx && canonical.alter == key.alter {
+    0
+  } else if key.alter > 0 {
+    1
+  } else if key.alter < 0 {
+    -1
+  } else {
+    0
+  }
+}
+
+///|
 /// ピッチクラスを正準 12 キー表のキーに解決する
 fn canonical_key_info(pc : Int) -> KeyInfo {
   match parse_key_name(canonical_key_names()[(pc % 12 + 12) % 12]) {
@@ -168,6 +217,8 @@ fn canonical_key_info(pc : Int) -> KeyInfo {
 priv struct KeyCursor {
   mut current : KeyInfo
   delta : Int
+  // 転調先の綴り優先度（選択キーの綴りから導出。spelling_pref を参照）
+  pref : Int
 }
 
 ///|
@@ -177,7 +228,7 @@ fn KeyCursor::make(selected : KeyInfo, declared : KeyInfo) -> KeyCursor {
       (key_pitch_class(selected) - key_pitch_class(declared)) % 12 + 12
     ) %
     12
-  { current: selected, delta }
+  { current: selected, delta, pref: spelling_pref(selected) }
 }
 
 ///|
@@ -188,14 +239,20 @@ fn KeyCursor::make(selected : KeyInfo, declared : KeyInfo) -> KeyCursor {
 fn KeyCursor::apply(self : KeyCursor, change : KeyChange) -> Unit {
   match change {
     RelativeKey(n) =>
-      self.current = canonical_key_info(key_pitch_class(self.current) + n + 12)
+      self.current = canonical_key_info_pref(
+        key_pitch_class(self.current) + n + 12,
+        self.pref,
+      )
     AbsoluteKey(name) =>
       match parse_key_name(name) {
         Some(src) =>
           if self.delta == 0 {
             self.current = src
           } else {
-            self.current = canonical_key_info(key_pitch_class(src) + self.delta)
+            self.current = canonical_key_info_pref(
+              key_pitch_class(src) + self.delta,
+              self.pref,
+            )
           }
         None => () // 検証済みの絶対キーのみ AST に載るため到達しない
       }

@@ -459,3 +459,5 @@
 | 仕様項目 | 対応テスト |
 |---|---|
 | DSL のアクシデンタル合成でダブル以上になる実音は正準表で綴り直す(D♭ の `b6` = `B♭♭` → `A`。ルート・スラッシュベース両方。シングルは理論綴りのまま) | transpose_test.mbt: "respell double accidentals" |
+| 綴り優先度の伝播: 異名同音側の綴り(C#・Gb)を選ぶと転調先も同じ向きの正準表で綴る(C# +2 → D#)。既定綴り(Db・F#)は従来どおり | transpose_test.mbt: "spelling preference propagates to modulations" |
+| ウィジェットの ♯/♭ トグル(黒鍵 5 スロットの綴り一括切り替え。実体はフォーク側 chord-widget.ts) | transpose_test.mbt: "widget has spelling toggle" / markdown.mbt 側 E2E | 

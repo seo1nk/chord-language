@@ -190,6 +190,42 @@ test "transpose key change canonical spelling" {
 }
 
 ///|
+/// 綴り優先度の伝播: 異名同音側の綴り(C#・Gb 等)を選ぶと、相対転調の
+/// 転調先も同じ向きで綴る。既定表の綴り(Db・F# 等)は従来どおり既定表
+test "spelling preference propagates to modulations" {
+  // C#(♯側)を選択: +2 の転調先は Eb でなく D#
+  let sharp = @chord_language.parse_to_notes_html("1\n[key: +2]\n1", "C#")
+  assert_true(sharp.contains("Key D# (+2)"))
+  assert_true(sharp.contains(">D#<"))
+  // 既定綴りの Db は従来どおり ♭ 側
+  let flat = @chord_language.parse_to_notes_html("1\n[key: +2]\n1", "Db")
+  assert_true(flat.contains("Key E♭ (+2)"))
+  // 既定表そのままの F# 選択も従来どおり(+2 → Ab)
+  let default_spelling = @chord_language.parse_to_notes_html(
+    "1\n[key: +2]\n1", "F#",
+  )
+  assert_true(default_spelling.contains("Key A♭ (+2)"))
+  // Gb(♭側)を選択: pc6 へ戻る転調は F# でなく G♭ と綴る
+  let flat_side = @chord_language.parse_to_notes_html(
+    "1\n[key: +7]\n1\n[key: +5]\n1", "Gb",
+  )
+  assert_true(flat_side.contains("Key G♭ (+5)"))
+  // 宣言キーが C# ならディグリータブの転調チップも ♯ 側で綴る
+  let widget = @chord_language.render_widget_html(
+    "---\nkey: C#\n---\n1\n[key: +2]\n1",
+  )
+  assert_true(widget.contains("key D# (+2)"))
+}
+
+///|
+/// ウィジェットに ♯/♭ トグルが含まれる(切り替えの実体はランタイム)
+test "widget has spelling toggle" {
+  let html = @chord_language.render_widget_html("---\nkey: F\n---\n1")
+  assert_true(html.contains("chord-spell"))
+  assert_true(html.contains("aria-pressed=\"false\""))
+}
+
+///|
 /// ダブルアクシデンタルの異名同音化: Db の b6 は 6(= B♭)をさらに
 /// 半音下げた B♭♭ になるが、読めないので A と綴り直す(ルートと
 /// スラッシュベースの両方)。シングルの変化音は理論綴りのまま
