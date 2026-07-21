@@ -100,6 +100,13 @@ fn degree_note_name(
     Some(Flat) => alt = alt - 1
     None => ()
   }
+  // ダブル以上のアクシデンタルは理論綴りのままだと読めない
+  // （Db の b6 = B♭♭ など）ので、正準 12 キー表の異名同音で
+  // 単純な綴りに直す（B♭♭ → A）。シングルまでは理論綴りを保つ
+  if alt > 1 || alt < -1 {
+    let simple = canonical_key_info(letter_semitone(letter) + alt)
+    return letter_name(simple.letter_idx) + alter_display(simple.alter)
+  }
   letter_name(letter) + alter_display(alt)
 }
 

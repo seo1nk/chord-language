@@ -190,6 +190,25 @@ test "transpose key change canonical spelling" {
 }
 
 ///|
+/// ダブルアクシデンタルの異名同音化: Db の b6 は 6(= B♭)をさらに
+/// 半音下げた B♭♭ になるが、読めないので A と綴り直す(ルートと
+/// スラッシュベースの両方)。シングルの変化音は理論綴りのまま
+test "respell double accidentals" {
+  let html = @chord_language.parse_to_notes_html("| b6 | 37/b6 |", "Db")
+  assert_true(html.contains(">A<"))
+  assert_true(html.contains("/A"))
+  assert_false(html.contains("♭♭"))
+  // F から -4 で Db に移った文脈でも同じ(ユーザー報告の再現)
+  let modulated = @chord_language.parse_to_notes_html(
+    "| 6m |\n[key: -4]\n| b6 |", "F",
+  )
+  assert_false(modulated.contains("♭♭"))
+  // シングルの変化音は理論綴りを保つ(C の b3 = E♭)
+  let single = @chord_language.parse_to_notes_html("| b3 |", "C")
+  assert_true(single.contains("E♭"))
+}
+
+///|
 /// ウィジェット: 両パネルとも解決後キー + 転調幅のチップ
 /// （実音は "Key"、ディグリーは初期キーチップに合わせた小文字 "key"）
 test "widget key change chips" {

@@ -451,3 +451,11 @@
 | 仕様項目 | 対応テスト |
 |---|---|
 | ディグリータブの転調チップ: 単独行 `key D♭ (+1)`(絶対は `key F`)・インラインはキー名のみ(宣言キー基準・綴りは実音タブと同じ) | renderer_test.mbt: "render key change badges" ほかゴールデン / transpose_test.mbt: "widget key change chips" |
+
+---
+
+### 2026-07-21 更新（ダブルアクシデンタルの異名同音化）
+
+| 仕様項目 | 対応テスト |
+|---|---|
+| DSL のアクシデンタル合成でダブル以上になる実音は正準表で綴り直す(D♭ の `b6` = `B♭♭` → `A`。ルート・スラッシュベース両方。シングルは理論綴りのまま) | transpose_test.mbt: "respell double accidentals" |
