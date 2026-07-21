@@ -228,13 +228,13 @@ document.head.appendChild(style);
   <div class="chord-tabs" role="tablist">
     <button class="chord-tab chord-tab--active" data-chord-tab="degree">ディグリー</button>
     <button class="chord-tab" data-chord-tab="notes">コード</button>
-    <div class="chord-tools">              <!-- 右側ツールの 2×2 グリッド(行の高さを共有して横ラインを揃える) -->
+    <div class="chord-tools">              <!-- 右側ツールの 2×2 グリッド(上段 = キー系、下段 = 再生・コピー) -->
       <div class="chord-spell" role="group">   <!-- ♭/♯綴りのセグメントトグル(既定 ♭。ランタイムが切替。ディグリータブでは visibility hidden) -->
         <button class="chord-spell-opt" data-chord-spell="flat" aria-pressed="true">♭</button>
         <button class="chord-spell-opt" data-chord-spell="sharp" aria-pressed="false">♯</button>
       </div>
-      <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
       <select class="chord-key-select">…12 キー…</select>   <!-- ディグリータブでは visibility hidden -->
+      <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
       <button class="chord-copy-img" aria-label="画像コピー"><svg data-icon="camera">…</svg></button>
     </div>
   </div>
