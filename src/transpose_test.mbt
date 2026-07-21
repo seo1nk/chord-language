@@ -218,11 +218,14 @@ test "spelling preference propagates to modulations" {
 }
 
 ///|
-/// ウィジェットに ♯/♭ トグルが含まれる(切り替えの実体はランタイム)
+/// ウィジェットに ♭/♯ セグメントトグルが含まれ、既定は ♭ 側がアクティブ
+/// (切り替えの実体はランタイム)
 test "widget has spelling toggle" {
   let html = @chord_language.render_widget_html("---\nkey: F\n---\n1")
-  assert_true(html.contains("chord-spell"))
-  assert_true(html.contains("aria-pressed=\"false\""))
+  assert_true(html.contains("data-chord-spell=\"flat\" aria-pressed=\"true\""))
+  assert_true(
+    html.contains("data-chord-spell=\"sharp\" aria-pressed=\"false\""),
+  )
 }
 
 ///|

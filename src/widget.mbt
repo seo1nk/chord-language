@@ -88,12 +88,19 @@ pub fn render_widget_html(input : String) -> String {
   // (上段 = ♯/♭トグル・再生・画像コピーのアイコン列、下段 = キープルダウン)
   sb.write_string("<div class=\"chord-tools\">")
   sb.write_string("<div class=\"chord-tools-row\">")
-  // ♯/♭トグル: キープルダウンの黒鍵 5 スロットの綴りを ♯ 側へ一括で
-  // 切り替える(OFF で元の綴りへ)。切り替えの実体はクライアント
-  // ランタイム(フォーク側 chord-widget.ts)
+  // ♭/♯セグメントトグル: キープルダウンの黒鍵 5 スロットの綴りを
+  // 一括で切り替える。既定は ♭ 側(= 既定の正準表)がアクティブ。
+  // 切り替えの実体はクライアントランタイム(フォーク側 chord-widget.ts)
   sb.write_string(
-    "<button type=\"button\" class=\"chord-spell\" title=\"♯表記に切り替え\" aria-label=\"♯表記に切り替え\" aria-pressed=\"false\">♯</button>",
+    "<div class=\"chord-spell\" role=\"group\" aria-label=\"臨時記号の綴り\">",
   )
+  sb.write_string(
+    "<button type=\"button\" class=\"chord-spell-opt\" data-chord-spell=\"flat\" aria-pressed=\"true\" title=\"♭表記\">♭</button>",
+  )
+  sb.write_string(
+    "<button type=\"button\" class=\"chord-spell-opt\" data-chord-spell=\"sharp\" aria-pressed=\"false\" title=\"♯表記\">♯</button>",
+  )
+  sb.write_string("</div>")
   sb.write_string(
     "<button type=\"button\" class=\"chord-play\" title=\"表示中のキーで再生\" aria-label=\"再生\">" +
     play_icon_svg +
@@ -181,9 +188,10 @@ pub fn chord_css() -> String {
     #|.chord-tools-row { display: flex; gap: 0.4em; }
     #|.chord-tools-row > button { flex: 1 1 0; }
     #|.chord-key-select { font: inherit; font-size: 0.78em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.05em 0.3em; }
-    #|.chord-spell { font: inherit; font-size: 0.78em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.05em 0.45em; cursor: pointer; opacity: 0.75; }
-    #|.chord-spell:hover { opacity: 1; }
-    #|.chord-spell[aria-pressed="true"] { background: #8883; opacity: 1; font-weight: 600; }
+    #|.chord-spell { display: flex; align-items: stretch; border: 1px solid #8886; border-radius: 4px; overflow: hidden; }
+    #|.chord-spell-opt { font: inherit; font-size: 0.78em; flex: 1 1 0; background: transparent; color: inherit; border: none; padding: 0.05em 0.4em; cursor: pointer; opacity: 0.5; }
+    #|.chord-spell-opt:hover { opacity: 0.85; }
+    #|.chord-spell-opt[aria-pressed="true"] { background: #8883; opacity: 1; font-weight: 600; }
     #|.chord-copy-img, .chord-play { font: inherit; font-size: 0.72em; background: transparent; color: inherit; border: 1px solid #8886; border-radius: 4px; padding: 0.1em 0.6em; cursor: pointer; opacity: 0.75; }
     #|.chord-play svg, .chord-copy-img svg { vertical-align: -0.3em; }
     #|.chord-copy-img:hover, .chord-play:hover { opacity: 1; }

@@ -230,7 +230,10 @@ document.head.appendChild(style);
     <button class="chord-tab" data-chord-tab="notes">コード</button>
     <div class="chord-tools">              <!-- 右側ツール群(モバイル幅で折り返さない 2 段クラスタ) -->
       <div class="chord-tools-row">
-        <button class="chord-spell" aria-pressed="false">♯</button>  <!-- ♯/♭綴りトグル(ランタイムが切替) -->
+        <div class="chord-spell" role="group">   <!-- ♭/♯綴りのセグメントトグル(既定 ♭。ランタイムが切替) -->
+          <button class="chord-spell-opt" data-chord-spell="flat" aria-pressed="true">♭</button>
+          <button class="chord-spell-opt" data-chord-spell="sharp" aria-pressed="false">♯</button>
+        </div>
         <button class="chord-play" aria-label="再生"><svg data-icon="play">…</svg></button>
         <button class="chord-copy-img" aria-label="画像コピー"><svg data-icon="camera">…</svg></button>
       </div>
