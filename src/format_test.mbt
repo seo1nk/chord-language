@@ -115,6 +115,16 @@ test "highlight: chord parts, structure, lyrics and frontmatter" {
 }
 
 ///|
+test "highlight: the degree is one digit (57 = 5 + seventh)" {
+  inspect(
+    @chord_language.highlight_spans("57 b37"),
+    content=(
+      #|[[1,0,1,"degree"],[1,1,2,"quality"],[1,3,5,"degree"],[1,5,6,"quality"]]
+    ),
+  )
+}
+
+///|
 test "highlight: half-diminished -5 is not split as a group, group holds are marked" {
   inspect(
     @chord_language.highlight_spans("2m7-5 5-_-1"),

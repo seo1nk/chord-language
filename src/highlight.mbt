@@ -224,7 +224,8 @@ fn highlight_chord_part(
   if i < end && (chars[i] == '#' || chars[i] == 's' || chars[i] == 'b') {
     i = i + 1
   }
-  while i < end && chars[i] >= '0' && chars[i] <= '9' {
+  // 度数は 1 桁(57 は 5 + セブンス)
+  if i < end && chars[i] >= '0' && chars[i] <= '9' {
     i = i + 1
   }
   push(line_no, col + start, col + i, "degree")
