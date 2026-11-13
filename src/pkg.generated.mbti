@@ -10,9 +10,13 @@ pub fn duplicate_seventh_error(String, Int) -> ParseError
 
 pub fn empty_parentheses_error(String, Int) -> ParseError
 
+pub fn format_score(String) -> String
+
 pub fn get_version() -> String
 
 pub fn health_check() -> String
+
+pub fn highlight_spans(String) -> String
 
 pub fn inline_chord_html(String) -> String
 
@@ -248,6 +252,8 @@ pub enum Token {
   NoChord
   EmptyBeat
   KeyChangeTok(KeyChange)
+  TempoChangeTok(Int)
+  TimeChangeTok(String)
 }
 
 // Type aliases

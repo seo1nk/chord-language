@@ -2,7 +2,7 @@
 
 chord-language が公開する API と、Markdown 側（markdown.mbt フォーク）からの呼び方を定義する。言語仕様そのものは [chord.md](./chord.md) を参照。
 
-- 対象バージョン: 1.2.0
+- 対象バージョン: 1.3.0
 - JS ビルド成果物: `_build/js/release/build/chord_language.js`（ESM。`moon build --target js --release` で生成）
 
 ## 設計原則
@@ -23,6 +23,8 @@ import {
   render_widget_html,
   chord_cheatsheet_html,
   chord_css,
+  highlight_spans,
+  format_score,
   get_version,
   health_check,
 } from ".../chord_language.js";
@@ -122,9 +124,30 @@ inline_chord_html("smile");  // => ''
 
 - テーマ: `--chord-bg` 変数を `:root[data-theme="dark"]` と `prefers-color-scheme` の両方で解決するため、ライト/ダークに自動追従する
 
+### `highlight_spans(input: string): string`(v1.3)
+
+エディタの色付け用に、`:::` フェンスの内側のテキストを**字句の種類と位置**の並びにして返す。
+
+```jsonc
+[[5, 2, 4, "degree"], [5, 4, 6, "quality"], ...]  // [行, 開始, 終了, 種類]
+```
+
+- 行は 1 始まり。開始・終了は行内の**文字位置(コードポイント単位)**で、`parse_to_json` のエラーの `position` と同じ単位(UTF-16 の位置への換算は呼び出し側で行う)
+- 種類: `fence` `meta-key` `meta-value`(フロントマター)、`section` `directive`、`bar` `repeat` `hold`(空拍・空きパート)`nc` `group`(グループ区切りの `-`)、`degree`(臨時記号 + 度数)`quality`(クオリティ・セブンス・sus など)`tension`(括弧の中)`bass`(`/` 以降)`color`(`@` 以降)、`lyric-mark`(`>`)`lyric` `lyric-hold`(歌詞の `_`)`lyric-split`(歌詞の `-`)
+- 字句の区切りはパーサと同じ。**正しいかどうかは見ない**(エラーは `parse_to_json` の `errors` を重ねる)。`2m7-5` のように 1 つのコードとして読めるトークンはグループに分けない
+
+### `format_score(input: string): string`(v1.3)
+
+`:::` フェンスの内側のテキストを整形して返す。
+
+- **行数を変えない**(n 行目は n 行目のまま。エディタのカーソルの行を保てる)。**意味を変えない**(前後で `parse_to_json` の結果が同じ)。何度かけても同じ
+- 正しく読めた行だけを整える: トークンの間を空白 1 つ、指示を `[key: +2]` `[bpm: 140]` `[time: 3/4]` の形、フロントマターを `key: G` の形、セクションを `[名前]` に
+- 歌詞の付いたコード行は、各スロットの書き始めの桁に、そのスロットの歌詞の書き始めを置く(全角などは 2 桁として数える)
+- エラーのある行(とそれに付いた歌詞行)は、行末の空白を落とすだけ。コード記号の綴り(`#4` / `s4` など)は書いたとおりに残す
+
 ### `get_version(): string` / `health_check(): string`
 
-パッケージバージョン（`"1.2.0"`）/ 疎通確認（`"OK"`）。
+パッケージバージョン（`"1.3.0"`）/ 疎通確認（`"OK"`）。
 
 ## 2. MoonBit API（パッケージとして import する場合）
 
@@ -136,7 +159,7 @@ inline_chord_html("smile");  // => ''
 | `render_widget_html(input : String) -> String` | SSR で使うのは基本これだけ |
 | `parse_chord(token : String) -> Result[ChordNode, ParseError]` | 単一コード記号のパース（インライン記法の妥当性判定に使える） |
 | `parse_to_html` / `parse_to_notes_html` / `parse_to_playback` / `inline_chord_html` / `chord_cheatsheet_html` / `chord_css` | JS 版と同一 |
-| `ScoreAST` / `Line` / `Token` / `KeyChange` / `GroupPart` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応。`KeyChange` は v1.1 の転調指示、`GroupPart` は v1.2 のグループパート） |
+| `ScoreAST` / `Line` / `Token` / `KeyChange` / `GroupPart` / `ChordNode` / `ParseError` ほか | AST 型（[chord.md](./chord.md#ast-定義) の TS 型に対応。`KeyChange` は v1.1 の転調指示、`GroupPart` は v1.2 のグループパート、`Token` の `TempoChangeTok` / `TimeChangeTok` は v1.3 のテンポ・拍子の変更） |
 
 ---
 
@@ -258,7 +281,7 @@ document.head.appendChild(style);
 
 ## 4. 互換性の約束
 
-- `:::` ブロック内テキストの解釈は [chord.md](./chord.md)（v1.1）に従う。文法の破壊的変更はメジャーバージョンでのみ行う
+- `:::` ブロック内テキストの解釈は [chord.md](./chord.md)（v1.3）に従う。文法の破壊的変更はメジャーバージョンでのみ行う
 - **ディレクティブ予約領域**: `[小文字識別子: 値]` 形式のブラケット（単独行・コード行内のインライントークンとも）は予約領域とする。**予約領域への意味付与は、実在文書への影響がないと判断した場合に限りマイナーバージョンで行える**（改訂履歴に必ず明記する）。v1.1 の転調指示 `[key: 値]` はこの枠での追加であり、将来の `[bpm: 140]` `[time: 3/4]`（途中変更）やモード対応も同じ枠で追加できる。予約領域の外（大文字始まり・コロンなし等のブラケット）の解釈は従来どおり互換性の対象
-- 公開 API の関数名・引数・JSON 形状（`parse_to_json` エンベロープ、`parse_to_playback` の `bpm/totalBeats/events/bass/stabs/cursor`）と、§3.5 の DOM コントラクトは互換性の対象
+- 公開 API の関数名・引数・JSON 形状（`parse_to_json` エンベロープ、`parse_to_playback` の `bpm/totalBeats/events/bass/stabs/cursor`、`highlight_spans` の `[行, 開始, 終了, 種類]` と種類の名前）と、§3.5 の DOM コントラクトは互換性の対象。`parse_to_playback` の拍は「冒頭のテンポでの 4 分音符」(テンポ変更が無ければ従来と同じ)
 - `chord-score` 内部の細かい HTML 構造（セルの入れ子・転調チップ等）は互換性の対象外（スタイルは `chord_css()` を使うこと）

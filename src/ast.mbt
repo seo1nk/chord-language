@@ -50,6 +50,8 @@ pub enum Token {
   NoChord // NC / N.C.（コードなし）
   EmptyBeat // _（空の拍。スロットを占有し歌詞を割り当てられる）
   KeyChangeTok(KeyChange) // [key: 値]（転調指示。スロット・歌詞・時間を消費しない）
+  TempoChangeTok(Int) // [bpm: 値]（テンポ変更。以降の再生テンポ。スロット・歌詞を消費しない）
+  TimeChangeTok(String) // [time: 値]（拍子変更。以降の 1 小節の長さ。スロット・歌詞を消費しない）
 }
 
 ///|

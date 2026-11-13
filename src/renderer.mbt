@@ -142,23 +142,31 @@ priv enum SlotCell {
 }
 
 ///|
-/// 行のスロット分解結果。転調指示（[key: 値]）はスロットを消費しないため、
+/// スロットを消費しない指示(転調・テンポ・拍子)
+priv enum Directive {
+  DKey(KeyChange) // [key: 値]
+  DTempo(Int) // [bpm: 値]
+  DTime(String) // [time: 値]
+}
+
+///|
+/// 行のスロット分解結果。指示（[key: 値] など）はスロットを消費しないため、
 /// スロット列とは別に「各スロットの直前」「行末（最後のスロットより後）」の
-/// 転調列として保持する（renderer と playback が同一経路で文書順に fold する）
+/// 指示列として保持する（renderer と playback が同一経路で文書順に fold する）
 priv struct LineSlots {
   leading : Bool // 行頭に小節線があるか
   slots : Array[SlotCell]
   trailing : Bool // 行末に小節線があるか
-  keys_before : Array[Array[KeyChange]] // slots[i] の直前の転調指示（slots と同じ長さ）
-  trailing_keys : Array[KeyChange] // 最後のスロットより後（行末）の転調指示
+  keys_before : Array[Array[Directive]] // slots[i] の直前の指示（slots と同じ長さ）
+  trailing_keys : Array[Directive] // 最後のスロットより後（行末）の指示
 }
 
 ///|
 /// 行のトークンをコードスロット列に変換する
 fn line_slots(tokens : Array[Token]) -> LineSlots {
   let slots : Array[SlotCell] = []
-  let keys_before : Array[Array[KeyChange]] = []
-  let pending_keys : Array[KeyChange] = []
+  let keys_before : Array[Array[Directive]] = []
+  let pending_keys : Array[Directive] = []
   let mut bar_pending = false
   let mut leading = false
   let mut first = true
@@ -204,11 +212,12 @@ fn line_slots(tokens : Array[Token]) -> LineSlots {
         bar_pending = false
         first = false
       }
-      KeyChangeTok(kc) =>
-        // スロットを消費しない。次のスロットの前置（行末なら後置）として保持する。
-        // first にも触れない: 転調指示は行頭の小節線の「leading」判定に対して
-        // 透明で、[key:+2] | 4 | と | 4 | のスロット構造（cursor.cell 数）は一致する
-        pending_keys.push(kc)
+      // スロットを消費しない。次のスロットの前置（行末なら後置）として保持する。
+      // first にも触れない: 指示は行頭の小節線の「leading」判定に対して
+      // 透明で、[key:+2] | 4 | と | 4 | のスロット構造（cursor.cell 数）は一致する
+      KeyChangeTok(kc) => pending_keys.push(DKey(kc))
+      TempoChangeTok(bpm) => pending_keys.push(DTempo(bpm))
+      TimeChangeTok(time) => pending_keys.push(DTime(time))
     }
   }
   {
@@ -221,18 +230,25 @@ fn line_slots(tokens : Array[Token]) -> LineSlots {
 }
 
 ///|
-/// 転調チップ列を書き出す（after = 直前セルへの後置チップ）
+/// 指示のチップ列を書き出す（after = 直前セルへの後置チップ）。
+/// 転調は key_chip(キーの表示と、実音タブのキーの追跡)を、文書順に 1 回ずつ呼ぶ。
+/// テンポ・拍子はキーに関わらないので、決まった表記にする(♩ = 140 / 3/4)
 fn write_key_chips(
   sb : StringBuilder,
-  keys : Array[KeyChange],
+  keys : Array[Directive],
   key_chip : (KeyChange, Bool) -> String,
   standalone : Bool,
   after : Bool,
 ) -> Unit {
-  for kc in keys {
+  for d in keys {
+    let (label, kind) = match d {
+      DKey(kc) => (key_chip(kc, standalone), "")
+      DTempo(bpm) => ("♩ = " + bpm.to_string(), " chord-mod--tempo")
+      DTime(time) => (time, " chord-mod--time")
+    }
     let cls = if after { "chord-mod chord-mod--after" } else { "chord-mod" }
-    sb.write_string("<span class=\"" + cls + "\">")
-    sb.write_string(escape_html(key_chip(kc, standalone)))
+    sb.write_string("<span class=\"" + cls + kind + "\">")
+    sb.write_string(escape_html(label))
     sb.write_string("</span>")
   }
 }
@@ -268,7 +284,7 @@ fn write_line_html(
   bar_break : () -> Unit,
 ) -> Unit {
   let ls = line_slots(line.tokens)
-  // 転調指示だけの行（スロットなし）は全幅の転調バッジ行として描画する
+  // 指示だけの行（スロットなし）は全幅のバッジ行として描画する
   if ls.slots.is_empty() && ls.trailing_keys.length() > 0 {
     sb.write_string("<div class=\"chord-modline\">")
     write_key_chips(sb, ls.trailing_keys, key_chip, true, false)

@@ -2,7 +2,7 @@
 
 数字ディグリー記譜法（ナッシュビル・ナンバー・システム系）のコード譜 DSL。MoonBit 製のパーサ・HTML レンダラ・移調エンジン・再生スケジューラを含み、JS ターゲットにコンパイルしてブラウザで使う。
 
-仕様書: [docs/chord.md](docs/chord.md)（v1.1）
+仕様書: [docs/chord.md](docs/chord.md)（v1.3）
 
 ## 記法の例
 
@@ -19,7 +19,7 @@ bpm: 96
 
 - ディグリー（`1`〜`7`、シャープは `#`/`s`、フラットは `b`）+ クオリティ・セブンス（`M7`/`maj7`）・テンション・スラッシュベース
 - `|` 小節線、`%` 反復、`_` 空拍、`NC`、`-` グループ（1 スロット複数コード）、`@red` 強調色
-- `[名前]` セクションラベル、`>` ペア歌詞行、`[key: +1]` / `[key: F]` 転調指示（単独行・インライン両対応）
+- `[名前]` セクションラベル、`>` ペア歌詞行、`[key: +1]` / `[key: F]` 転調指示、`[bpm: 140]` / `[time: 3/4]` テンポ・拍子の変更（単独行・インライン両対応）
 - フロントマターで `key` / `bpm` / `time`（拍子）
 
 ## 公開 API（JS ターゲット）
@@ -33,6 +33,8 @@ import {
   inline_chord_html,  // 単一コード記号のインライン HTML（:2m7: 記法用。不正なら ""）
   parse_to_playback,  // 再生スケジュール JSON（bpm/totalBeats/events/bass/stabs/cursor）
   chord_css,          // スコープ付き CSS（ページに 1 回注入）
+  highlight_spans,    // エディタの色付け用の字句の位置と種類(v1.3)
+  format_score,       // 行数・意味を変えない整形(v1.3)
 } from "./_build/js/release/build/chord_language.js";
 ```
 

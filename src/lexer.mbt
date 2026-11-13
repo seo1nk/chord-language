@@ -5,7 +5,7 @@ priv enum PosTokenKind {
   BarTok // |
   RepeatTok // %（反復記号）
   BlankTok // _（空の拍）
-  KeyTok // [key: 値]（転調指示。値が不正・未クローズでも拾い、InvalidKeyChange にする）
+  DirectiveTok // [key: 値] / [bpm: 値] / [time: 値]（指示。値が不正・未クローズでも拾い、エラーにする）
 }
 
 ///|
@@ -66,23 +66,23 @@ fn tokenize_line(line : String) -> Array[PosToken] {
         }
         j = j + 1
       }
-      if close >= 0 && is_key_change_inner(chars, i + 1, close) {
+      if close >= 0 && is_directive_inner(chars, i + 1, close) {
         let sb = StringBuilder::new()
         for k in i..<(close + 1) {
           sb.write_char(chars[k])
         }
-        tokens.push({ text: sb.to_string(), col: i, kind: KeyTok })
+        tokens.push({ text: sb.to_string(), col: i, kind: DirectiveTok })
         i = close + 1
         continue
       }
-      if close < 0 && is_key_change_inner(chars, i + 1, len) {
+      if close < 0 && is_directive_inner(chars, i + 1, len) {
         // 未クローズの転調指示: 行末までを 1 トークンとして拾う
         // （InvalidKeyChange として 1 件のエラーで報告するため）
         let sb = StringBuilder::new()
         for k in i..<len {
           sb.write_char(chars[k])
         }
-        tokens.push({ text: sb.to_string(), col: i, kind: KeyTok })
+        tokens.push({ text: sb.to_string(), col: i, kind: DirectiveTok })
         i = len
         continue
       }
@@ -116,26 +116,48 @@ fn tokenize_line(line : String) -> Array[PosToken] {
 }
 
 ///|
-/// ブラケットの内側（chars[start..end)）が転調指示のプレフィックス
-/// （空白* "key" 空白* ":"）で始まるかを判定する。
-/// プレフィックスに一致したブラケットは値が不正でも転調指示として扱う
-/// （タイポが黙ってセクションバッジ化する事故を防ぐ）。大文字の Key は不一致
-fn is_key_change_inner(chars : Array[Char], start : Int, end : Int) -> Bool {
+/// 指示の名前(ディレクティブ予約領域のうち、意味を持つもの)
+let directive_names : Array[String] = ["key", "bpm", "time"]
+
+///|
+/// ブラケットの内側（chars[start..end)）が指示のプレフィックス
+/// （空白* 名前 空白* ":"。名前は key / bpm / time）で始まるなら、その名前を返す。
+/// プレフィックスに一致したブラケットは値が不正でも指示として扱う
+/// （タイポが黙ってセクションバッジ化する事故を防ぐ）。大文字の Key などは不一致
+fn directive_name(chars : Array[Char], start : Int, end : Int) -> String? {
   let mut i = start
   while i < end && is_whitespace(chars[i]) {
     i = i + 1
   }
-  if i + 3 > end ||
-    chars[i] != 'k' ||
-    chars[i + 1] != 'e' ||
-    chars[i + 2] != 'y' {
-    return false
+  for name in directive_names {
+    let n = name.length()
+    if i + n > end {
+      continue
+    }
+    let mut ok = true
+    for k, c in name.to_array() {
+      if chars[i + k] != c {
+        ok = false
+        break
+      }
+    }
+    if !ok {
+      continue
+    }
+    let mut j = i + n
+    while j < end && is_whitespace(chars[j]) {
+      j = j + 1
+    }
+    if j < end && chars[j] == ':' {
+      return Some(name)
+    }
   }
-  i = i + 3
-  while i < end && is_whitespace(chars[i]) {
-    i = i + 1
-  }
-  i < end && chars[i] == ':'
+  None
+}
+
+///|
+fn is_directive_inner(chars : Array[Char], start : Int, end : Int) -> Bool {
+  directive_name(chars, start, end) is Some(_)
 }
 
 ///|

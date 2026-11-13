@@ -16,6 +16,8 @@ options(
         "render_widget_html",
         "chord_cheatsheet_html",
         "chord_css",
+        "highlight_spans",
+        "format_score",
         "get_version",
         "health_check",
       ],

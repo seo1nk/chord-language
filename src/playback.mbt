@@ -20,6 +20,54 @@ priv struct PlayEvent {
   notes : Array[Int] // 上声の MIDI ノート番号（ベースは別トラック）
   bass : Int // ベース音の MIDI ノート番号
   pulse : Bool // ベースを拍ごとに刻むか（グループの細分は単発）
+  unit : Double // このイベントを鳴らした時点の拍子でのベースの刻み(4 分音符単位)
+  compound : Bool // このイベントを鳴らした時点の拍子が 8 分系の複合拍子か
+}
+
+///|
+/// 拍子から、1 スロット(= 1 小節)の長さ・ベースの刻み・複合拍子かを決める(4 分音符単位)
+fn time_params(time_sig : String) -> (Double, Double, Bool) {
+  let (ts_num, ts_den) = match time_sig.find("/") {
+    Some(slash) => {
+      let n = time_sig.unsafe_substring(start=0, end=slash)
+      let d = time_sig.unsafe_substring(start=slash + 1, end=time_sig.length())
+      let to_int = fn(x : String) -> Int {
+        let mut v = 0
+        for c in x {
+          v = v * 10 + (c.to_int() - 48)
+        }
+        v
+      }
+      (to_int(n), to_int(d))
+    }
+    None => (4, 4)
+  }
+  let slot_beats = ts_num.to_double() * 4.0 / ts_den.to_double()
+  // ベースの刻み: 8 分系の複合拍子は付点 4 分パルス、それ以外は拍子の 1 拍単位
+  let compound = ts_den == 8 && ts_num % 3 == 0
+  let bass_unit = if compound { 1.5 } else { 4.0 / ts_den.to_double() }
+  (slot_beats, bass_unit, compound)
+}
+
+///|
+/// テンポの変わる点(楽譜上の拍, bpm)の列から、楽譜上の拍を「冒頭のテンポでの拍」に
+/// 換算する。出力の拍の単位を冒頭のテンポに固定すれば、受け取る側は従来どおり
+/// 60 / bpm(冒頭)で秒に直すだけでよい(応答の形を変えずにテンポ変更を表せる)
+fn tempo_mapper(points : Array[(Double, Int)]) -> (Double) -> Double {
+  let base = points[0].1.to_double()
+  fn(m : Double) -> Double {
+    let mut t = 0.0
+    for i, point in points {
+      let (start, bpm) = point
+      if m <= start {
+        break
+      }
+      let end = if i + 1 < points.length() { points[i + 1].0 } else { m }
+      let seg_end = if m < end { m } else { end }
+      t = t + (seg_end - start) * base / bpm.to_double()
+    }
+    t
+  }
 }
 
 ///|
@@ -209,30 +257,15 @@ pub fn parse_to_playback(input : String, key : String) -> String {
   let delta = ((tonic_pc - declared_pc) % 12 + 12) % 12
   let bpm = result.score.bpm_or_default()
   // 拍子（既定 4/4）から 1 スロット（= 1 小節）の長さとベースの刻みを決める。
-  // 長さの単位は 4 分音符（bpm 基準）
-  let time_sig = result.score.time_or_default()
-  let (ts_num, ts_den) = match time_sig.find("/") {
-    Some(slash) => {
-      let n = time_sig.unsafe_substring(start=0, end=slash)
-      let d = time_sig.unsafe_substring(start=slash + 1, end=time_sig.length())
-      let to_int = fn(x : String) -> Int {
-        let mut v = 0
-        for c in x {
-          v = v * 10 + (c.to_int() - 48)
-        }
-        v
-      }
-      (to_int(n), to_int(d))
-    }
-    None => (4, 4)
-  }
-  let slot_beats = ts_num.to_double() * 4.0 / ts_den.to_double()
-  // ベースの刻み: 8 分系の複合拍子は付点 4 分パルス、それ以外は拍子の 1 拍単位
-  let bass_unit = if ts_den == 8 && ts_num % 3 == 0 {
-    1.5
-  } else {
-    4.0 / ts_den.to_double()
-  }
+  // 長さの単位は 4 分音符。[time: 値] で途中から変わる
+  let (slot_beats0, bass_unit0, compound0) = time_params(
+    result.score.time_or_default(),
+  )
+  let mut slot_beats = slot_beats0
+  let mut bass_unit = bass_unit0
+  let mut compound = compound0
+  // テンポの変わる点(楽譜上の拍, bpm)。[bpm: 値] で足される
+  let tempo_points : Array[(Double, Int)] = [(0.0, bpm)]
   let events : Array[PlayEvent] = []
   let cursor : Array[CursorEntry] = []
   let mut beat = 0.0
@@ -240,17 +273,46 @@ pub fn parse_to_playback(input : String, key : String) -> String {
   // 直前の発音（% の再打鍵と _ の持続に使う）
   let mut last_voicing : (Int, Array[Int])? = None
   let mut last_event : Int? = None
+  // 指示を文書順に適用する(時間・セル番号は消費しない)。
+  // 転調 = 以降のディグリーの基準キー、テンポ = この拍から先の速さ、拍子 = 以降の 1 小節の長さ
+  let apply_directive = fn(d : Directive) {
+    match d {
+      DKey(kc) => tonic_pc = apply_key_change_pc(tonic_pc, delta, kc)
+      DTempo(next) => {
+        let last = tempo_points.length() - 1
+        if tempo_points[last].0 == beat {
+          // 同じ位置で続けて変えたら、あとの指定を使う
+          tempo_points[last] = (beat, next)
+        } else {
+          tempo_points.push((beat, next))
+        }
+      }
+      DTime(time) => {
+        let (sb, bu, cp) = time_params(time)
+        slot_beats = sb
+        bass_unit = bu
+        compound = cp
+      }
+    }
+  }
   for line in result.score.lines {
     let ls = line_slots(line.tokens)
     for i, slot in ls.slots {
-      // スロットの直前の転調指示を文書順に適用する（時間・セル番号は消費しない）
-      for kc in ls.keys_before[i] {
-        tonic_pc = apply_key_change_pc(tonic_pc, delta, kc)
+      for d in ls.keys_before[i] {
+        apply_directive(d)
       }
       match slot {
         ChordSlot(node, _) => {
           let (bass, notes) = chord_midi_notes(node, tonic_pc)
-          events.push({ beat, dur: slot_beats, notes, bass, pulse: true })
+          events.push({
+            beat,
+            dur: slot_beats,
+            notes,
+            bass,
+            pulse: true,
+            unit: bass_unit,
+            compound,
+          })
           last_voicing = Some((bass, notes))
           last_event = Some(events.length() - 1)
           cursor.push({ beat, dur: slot_beats, cell })
@@ -268,6 +330,8 @@ pub fn parse_to_playback(input : String, key : String) -> String {
                   notes,
                   bass,
                   pulse: false,
+                  unit: bass_unit,
+                  compound,
                 })
                 last_voicing = Some((bass, notes))
                 last_event = Some(events.length() - 1)
@@ -287,7 +351,15 @@ pub fn parse_to_playback(input : String, key : String) -> String {
         RepeatSlot(_) => {
           match last_voicing {
             Some((bass, notes)) => {
-              events.push({ beat, dur: slot_beats, notes, bass, pulse: true })
+              events.push({
+                beat,
+                dur: slot_beats,
+                notes,
+                bass,
+                pulse: true,
+                unit: bass_unit,
+                compound,
+              })
               last_event = Some(events.length() - 1)
             }
             None => () // 直前のコードが無い % は無音
@@ -313,16 +385,15 @@ pub fn parse_to_playback(input : String, key : String) -> String {
       }
       cell = cell + 1
     }
-    // 行末（最後のスロットより後）の転調指示も次の行へ向けて適用する
-    for kc in ls.trailing_keys {
-      tonic_pc = apply_key_change_pc(tonic_pc, delta, kc)
+    // 行末（最後のスロットより後）の指示も次の行へ向けて適用する
+    for d in ls.trailing_keys {
+      apply_directive(d)
     }
   }
   // ベーストラック: 拍ごとの刻み（pulse イベント）またはグループ細分の単発。
   // 複合拍子は付点 4 分のグループを「ずん・ちゃ・ちゃ」に展開する:
   // ずん = ベースのルート、ちゃっちゃ = 上声和音の短い刻み（stabs）。
   // 弱拍をベース 1 音で鳴らすと持続和音に埋もれて聞こえないため、和音で刻む
-  let compound = ts_den == 8 && ts_num % 3 == 0
   let bass_hits : Array[BassHit] = []
   let stab_hits : Array[StabHit] = []
   let push_hits = fn(
@@ -330,6 +401,7 @@ pub fn parse_to_playback(input : String, key : String) -> String {
     span : Double,
     note : Int,
     notes : Array[Int],
+    compound : Bool,
   ) {
     if compound {
       // ずん: グループ頭にルートを強く
@@ -349,27 +421,33 @@ pub fn parse_to_playback(input : String, key : String) -> String {
     }
   }
   for ev in events {
+    let unit = ev.unit
     if ev.pulse {
       let mut t = ev.beat
       while t < ev.beat + ev.dur - 0.0001 {
         let remain = ev.beat + ev.dur - t
-        let d = if bass_unit < remain { bass_unit } else { remain }
-        push_hits(t, d, ev.bass, ev.notes)
-        t = t + bass_unit
+        let d = if unit < remain { unit } else { remain }
+        push_hits(t, d, ev.bass, ev.notes, ev.compound)
+        t = t + unit
       }
     } else {
-      let d = if bass_unit < ev.dur { bass_unit } else { ev.dur }
-      push_hits(ev.beat, d, ev.bass, ev.notes)
+      let d = if unit < ev.dur { unit } else { ev.dur }
+      push_hits(ev.beat, d, ev.bass, ev.notes, ev.compound)
     }
+  }
+  // ここまでは楽譜上の拍。出力は「冒頭のテンポでの拍」に換算する(テンポ変更が無ければ同じ)
+  let at = tempo_mapper(tempo_points)
+  let span = fn(start : Double, dur : Double) -> Double {
+    at(start + dur) - at(start)
   }
   let obj : Map[String, Json] = {}
   obj["bpm"] = Json::number(bpm.to_double())
-  obj["totalBeats"] = Json::number(beat)
+  obj["totalBeats"] = Json::number(at(beat))
   obj["events"] = Json::array(
     events.map(fn(ev) {
       let e : Map[String, Json] = {}
-      e["beat"] = Json::number(ev.beat)
-      e["dur"] = Json::number(ev.dur)
+      e["beat"] = Json::number(at(ev.beat))
+      e["dur"] = Json::number(span(ev.beat, ev.dur))
       e["notes"] = Json::array(
         ev.notes.map(fn(n) { Json::number(n.to_double()) }),
       )
@@ -379,8 +457,8 @@ pub fn parse_to_playback(input : String, key : String) -> String {
   obj["bass"] = Json::array(
     bass_hits.map(fn(b) {
       let e : Map[String, Json] = {}
-      e["beat"] = Json::number(b.beat)
-      e["dur"] = Json::number(b.dur)
+      e["beat"] = Json::number(at(b.beat))
+      e["dur"] = Json::number(span(b.beat, b.dur))
       e["note"] = Json::number(b.note.to_double())
       e["gain"] = Json::number(b.gain)
       Json::object(e)
@@ -389,8 +467,8 @@ pub fn parse_to_playback(input : String, key : String) -> String {
   obj["stabs"] = Json::array(
     stab_hits.map(fn(s) {
       let e : Map[String, Json] = {}
-      e["beat"] = Json::number(s.beat)
-      e["dur"] = Json::number(s.dur)
+      e["beat"] = Json::number(at(s.beat))
+      e["dur"] = Json::number(span(s.beat, s.dur))
       e["notes"] = Json::array(
         s.notes.map(fn(n) { Json::number(n.to_double()) }),
       )
@@ -400,8 +478,8 @@ pub fn parse_to_playback(input : String, key : String) -> String {
   obj["cursor"] = Json::array(
     cursor.map(fn(c) {
       let e : Map[String, Json] = {}
-      e["beat"] = Json::number(c.beat)
-      e["dur"] = Json::number(c.dur)
+      e["beat"] = Json::number(at(c.beat))
+      e["dur"] = Json::number(span(c.beat, c.dur))
       e["cell"] = Json::number(c.cell.to_double())
       Json::object(e)
     }),

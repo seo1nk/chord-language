@@ -65,11 +65,11 @@ pub fn parse(input : String) -> ParseResult {
     }
 
     // セクションラベル: [名前] の単独行。
-    // ただし中身が key（小文字）+ コロンで始まる行は転調指示（[key: 値]）で
-    // あり、セクションにはしない（下のトークン化パスで KeyTok として解釈する）
+    // ただし中身が key / bpm / time（小文字）+ コロンで始まる行は指示
+    // （[key: 値] など）であり、セクションにはしない（下のトークン化パスで解釈する）
     let trimmed_chars = trimmed.to_array()
     let is_key_change_line = trimmed.has_prefix("[") &&
-      is_key_change_inner(trimmed_chars, 1, trimmed_chars.length())
+      is_directive_inner(trimmed_chars, 1, trimmed_chars.length())
     if !is_key_change_line &&
       trimmed.length() >= 2 &&
       trimmed.has_prefix("[") &&
@@ -92,17 +92,13 @@ pub fn parse(input : String) -> ParseResult {
         BarTok => tokens.push(BarLine)
         RepeatTok => tokens.push(Repeat)
         BlankTok => tokens.push(EmptyBeat)
-        KeyTok =>
-          // 転調指示。プレフィックス（[key ... :）に一致したトークンは、
-          // 値が不正・未クローズでも必ず InvalidKeyChange として報告する
-          match parse_key_change_token(pt.text) {
-            Some(kc) => tokens.push(KeyChangeTok(kc))
-            None => {
-              errors.push(
-                invalid_key_change_error(pt.text, 0)
-                .shift_position(pt.col)
-                .with_line(line_number),
-              )
+        DirectiveTok =>
+          // 指示。プレフィックス（[名前 ... :）に一致したトークンは、
+          // 値が不正・未クローズでも必ずエラーとして報告する
+          match parse_directive_token(pt.text) {
+            Ok(token) => tokens.push(token)
+            Err(e) => {
+              errors.push(e.shift_position(pt.col).with_line(line_number))
               line_ok = false
             }
           }
@@ -206,6 +202,79 @@ fn parse_chord_token(
     tokens.push(ChordGroup(group_parts))
   }
   ok
+}
+
+///|
+/// 指示トークン（[key: 値] / [bpm: 値] / [time: 値]）を解析する。
+/// - key  = 転調(値の文法は parse_key_change_token)
+/// - bpm  = テンポ変更(フロントマターの bpm と同じ。整数 20〜400)
+/// - time = 拍子変更(フロントマターの time と同じホワイトリスト)
+/// エラーの position はトークン内の 0(呼び出し側が行内位置へずらす)
+fn parse_directive_token(text : String) -> Result[Token, ParseError] {
+  let chars = text.to_array()
+  let len = chars.length()
+  let name = match directive_name(chars, 1, len) {
+    Some(n) => n
+    None => return Err(unrecognized_token_error(text, 0))
+  }
+  if name == "key" {
+    return match parse_key_change_token(text) {
+      Some(kc) => Ok(KeyChangeTok(kc))
+      None => Err(invalid_key_change_error(text, 0))
+    }
+  }
+  let invalid = fn() -> ParseError {
+    let kind = if name == "bpm" {
+      InvalidTempo(text)
+    } else {
+      InvalidTimeSignature(text)
+    }
+    { kind, position: Some(0), line: None, token: Some(text) }
+  }
+  // [ ... ] の形であること(未クローズは不正)
+  if len < 2 || chars[0] != '[' || chars[len - 1] != ']' {
+    return Err(invalid())
+  }
+  let value = match directive_value(chars) {
+    Some(v) => v
+    None => return Err(invalid()) // 値の欠落([bpm:])
+  }
+  if name == "bpm" {
+    match parse_bpm_value(value) {
+      Some(v) => Ok(TempoChangeTok(v))
+      None => Err(invalid())
+    }
+  } else if is_valid_time_signature(value) {
+    Ok(TimeChangeTok(value))
+  } else {
+    Err(invalid())
+  }
+}
+
+///|
+/// [名前: 値] の値(コロンより後、前後の空白を除く)。空なら None
+fn directive_value(chars : Array[Char]) -> String? {
+  let end = chars.length() - 1 // 閉じの ]
+  let mut i = 1
+  while i < end && chars[i] != ':' {
+    i = i + 1
+  }
+  i = i + 1
+  while i < end && is_whitespace(chars[i]) {
+    i = i + 1
+  }
+  let mut vend = end
+  while vend > i && is_whitespace(chars[vend - 1]) {
+    vend = vend - 1
+  }
+  if i >= vend {
+    return None
+  }
+  let sb = StringBuilder::new()
+  for k in i..<vend {
+    sb.write_char(chars[k])
+  }
+  Some(sb.to_string())
 }
 
 ///|
@@ -325,7 +394,8 @@ fn count_lyric_slots(tokens : Array[Token]) -> Int {
   for token in tokens {
     match token {
       Chord(_) | ChordGroup(_) | Repeat | NoChord | EmptyBeat => n = n + 1
-      BarLine | KeyChangeTok(_) => () // 転調指示はスロットを消費しない
+      // 指示(転調・テンポ・拍子)はスロットを消費しない
+      BarLine | KeyChangeTok(_) | TempoChangeTok(_) | TimeChangeTok(_) => ()
     }
   }
   n
@@ -397,6 +467,8 @@ fn token_to_string(token : Token) -> String {
     NoChord => "NoChord"
     EmptyBeat => "EmptyBeat"
     KeyChangeTok(kc) => "KeyChange(" + kc.to_source_text() + ")"
+    TempoChangeTok(bpm) => "TempoChange(" + bpm.to_string() + ")"
+    TimeChangeTok(time) => "TimeChange(" + time + ")"
   }
 }
 
@@ -585,6 +657,18 @@ fn token_to_json_value(token : Token) -> Json {
         }
       }
       obj["change"] = Json::object(change)
+      Json::object(obj)
+    }
+    TempoChangeTok(bpm) => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("TempoChange")
+      obj["bpm"] = Json::number(bpm.to_double())
+      Json::object(obj)
+    }
+    TimeChangeTok(time) => {
+      let obj : Map[String, Json] = {}
+      obj["type"] = Json::string("TimeChange")
+      obj["time"] = Json::string(time)
       Json::object(obj)
     }
   }
