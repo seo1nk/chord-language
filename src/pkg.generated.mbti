@@ -32,6 +32,8 @@ pub fn invalid_key_change_error(String, Int) -> ParseError
 
 pub fn invalid_key_error(String, Int) -> ParseError
 
+pub fn invalid_power_chord_combination_error(String, Int) -> ParseError
+
 pub fn invalid_quartal_combination_error(String, Int) -> ParseError
 
 pub fn invalid_seventh_error(String, String, Int) -> ParseError
@@ -95,6 +97,7 @@ pub fn AddDegree::to_string(Self) -> String
 
 pub enum Alteration {
   FlatFive
+  SharpFive
   Sus(Degree)
 }
 
@@ -182,6 +185,7 @@ pub enum ParseErrorKind {
   MissingBassDegree
   InvalidSusDegree(String)
   InvalidQuartalCombination
+  InvalidPowerChordCombination
   UnclosedFrontmatter
   InvalidFrontmatterField(String)
   InvalidKey(String)
@@ -202,6 +206,7 @@ pub enum Quality {
   Diminish
   Augment
   Quartal
+  Power
 }
 
 pub struct ScoreAST {

@@ -118,6 +118,7 @@ pub enum Quality {
   Diminish // dim
   Augment // aug
   Quartal // q(4度堆積: ルート + 完全4度 + 完全4度)
+  Power // 5(パワーコード: ルート + 完全5度。3 度を鳴らさない。v1.4)
 }
 
 ///|
@@ -132,6 +133,7 @@ pub enum Seventh {
 /// セブンスのあとに引っ付いたりするもの
 pub enum Alteration {
   FlatFive // b5
+  SharpFive // #5(v1.4)
   Sus(Degree) // sus2, sus4, etc.
 }
 

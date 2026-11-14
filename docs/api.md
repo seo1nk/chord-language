@@ -2,7 +2,7 @@
 
 chord-language が公開する API と、Markdown 側（markdown.mbt フォーク）からの呼び方を定義する。言語仕様そのものは [chord.md](./chord.md) を参照。
 
-- 対象バージョン: 1.3.0
+- 対象バージョン: 1.4.0
 - JS ビルド成果物: `_build/js/release/build/chord_language.js`（ESM。`moon build --target js --release` で生成）
 
 ## 設計原則
@@ -147,7 +147,7 @@ inline_chord_html("smile");  // => ''
 
 ### `get_version(): string` / `health_check(): string`
 
-パッケージバージョン（`"1.3.0"`）/ 疎通確認（`"OK"`）。
+パッケージバージョン（`"1.4.0"`）/ 疎通確認（`"OK"`）。
 
 ## 2. MoonBit API（パッケージとして import する場合）
 
@@ -281,7 +281,7 @@ document.head.appendChild(style);
 
 ## 4. 互換性の約束
 
-- `:::` ブロック内テキストの解釈は [chord.md](./chord.md)（v1.3）に従う。文法の破壊的変更はメジャーバージョンでのみ行う
+- `:::` ブロック内テキストの解釈は [chord.md](./chord.md)（v1.4）に従う。文法の破壊的変更はメジャーバージョンでのみ行う
 - **ディレクティブ予約領域**: `[小文字識別子: 値]` 形式のブラケット（単独行・コード行内のインライントークンとも）は予約領域とする。**予約領域への意味付与は、実在文書への影響がないと判断した場合に限りマイナーバージョンで行える**（改訂履歴に必ず明記する）。v1.1 の転調指示 `[key: 値]` はこの枠での追加であり、将来の `[bpm: 140]` `[time: 3/4]`（途中変更）やモード対応も同じ枠で追加できる。予約領域の外（大文字始まり・コロンなし等のブラケット）の解釈は従来どおり互換性の対象
 - 公開 API の関数名・引数・JSON 形状（`parse_to_json` エンベロープ、`parse_to_playback` の `bpm/totalBeats/events/bass/stabs/cursor`、`highlight_spans` の `[行, 開始, 終了, 種類]` と種類の名前）と、§3.5 の DOM コントラクトは互換性の対象。`parse_to_playback` の拍は「冒頭のテンポでの 4 分音符」(テンポ変更が無ければ従来と同じ)
 - `chord-score` 内部の細かい HTML 構造（セルの入れ子・転調チップ等）は互換性の対象外（スタイルは `chord_css()` を使うこと）

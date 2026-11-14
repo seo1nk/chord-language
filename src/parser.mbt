@@ -496,6 +496,7 @@ fn chord_source_text(node : ChordNode) -> String {
     Some(Diminish) => "dim"
     Some(Augment) => "aug"
     Some(Quartal) => "q"
+    Some(Power) => "5"
     None => ""
   }
   let sev = match node.seventh {
@@ -507,6 +508,7 @@ fn chord_source_text(node : ChordNode) -> String {
   }
   let alt = match node.alteration {
     Some(FlatFive) => "b5"
+    Some(SharpFive) => "s5"
     Some(Sus(d)) => "sus" + d.to_string()
     None => ""
   }
@@ -541,6 +543,7 @@ fn option_to_string(opt : ChordOption) -> String {
     TensionOpt(FlatThirteen) => "b13"
     TensionOpt(Thirteen) => "13"
     AlterationOpt(FlatFive) => "b5"
+    AlterationOpt(SharpFive) => "s5"
     AlterationOpt(Sus(d)) => "sus" + d.to_string()
   }
 }
@@ -694,6 +697,7 @@ fn chord_node_to_json_value(node : ChordNode) -> Json {
     Some(Diminish) => obj["quality"] = Json::string("dim")
     Some(Augment) => obj["quality"] = Json::string("aug")
     Some(Quartal) => obj["quality"] = Json::string("q")
+    Some(Power) => obj["quality"] = Json::string("5")
     None => ()
   }
 
@@ -710,6 +714,7 @@ fn chord_node_to_json_value(node : ChordNode) -> Json {
   // alteration
   match node.alteration {
     Some(FlatFive) => obj["alteration"] = { "type": "b5" }
+    Some(SharpFive) => obj["alteration"] = { "type": "s5" }
     Some(Sus(d)) =>
       obj["alteration"] = {
         "type": "sus",
@@ -748,6 +753,7 @@ fn option_to_json_value(opt : ChordOption) -> Json {
     TensionOpt(FlatThirteen) => { "type": "b13" }
     TensionOpt(Thirteen) => { "type": "13" }
     AlterationOpt(FlatFive) => { "type": "b5" }
+    AlterationOpt(SharpFive) => { "type": "s5" }
     AlterationOpt(Sus(d)) =>
       { "type": "sus", "degree": Json::string(d.to_string()) }
   }

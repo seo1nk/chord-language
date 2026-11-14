@@ -2,7 +2,7 @@
 
 数字ディグリー記譜法（ナッシュビル・ナンバー・システム系）のコード譜 DSL。MoonBit 製のパーサ・HTML レンダラ・移調エンジン・再生スケジューラを含み、JS ターゲットにコンパイルしてブラウザで使う。
 
-仕様書: [docs/chord.md](docs/chord.md)（v1.3）
+仕様書: [docs/chord.md](docs/chord.md)（v1.4）
 
 ## 記法の例
 

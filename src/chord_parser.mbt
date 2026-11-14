@@ -73,16 +73,45 @@ fn parse_quality(state : ParserState) -> (ParserState, Quality?) {
   if state.pos + 3 <= state.length && state.take(3) == "aug" {
     return (state.advance(3), Some(Augment))
   }
-  // "maj7"(メジャーセブンスの別表記)はクオリティではないので消費しない
-  if state.pos + 4 <= state.length && state.take(4) == "maj7" {
+  // "maj7" "maj9" など(メジャーセブンスの別表記)はクオリティではないので消費しない
+  if state.pos + 3 <= state.length && state.take(3) == "maj" {
     return (state, None)
   }
-  // "m" / "q" (1文字) をチェック
+  // "m" / "q" (1文字) をチェック。"5" はパワーコード(ディグリーの直後の 5。v1.4)
   match state.current_char() {
     Some('m') => (state.advance(1), Some(Minor))
     Some('q') => (state.advance(1), Some(Quartal))
+    Some('5') => (state.advance(1), Some(Power))
     _ => (state, None)
   }
+}
+
+///|
+/// 慣用表記のテンション入りセブンス(v1.4)。`9` `11` `13` はドミナントセブンス +
+/// テンション、`M9` `maj9` などはメジャーセブンス + テンションの略記として読む
+/// (`59` = `57(9)`、`2m11` = `2m7(11)`、`1M9` = `1M7(9)`)。同じ AST になる
+fn parse_extended_seventh(
+  state : ParserState,
+) -> (ParserState, Seventh?, Tension?) {
+  let forms : Array[(String, Seventh, Tension)] = [
+    ("maj13", MajorSeventh, Thirteen),
+    ("maj11", MajorSeventh, Eleven),
+    ("maj9", MajorSeventh, Nine),
+    ("M13", MajorSeventh, Thirteen),
+    ("M11", MajorSeventh, Eleven),
+    ("M9", MajorSeventh, Nine),
+    ("13", Seventh, Thirteen),
+    ("11", Seventh, Eleven),
+    ("9", Seventh, Nine),
+  ]
+  for form in forms {
+    let (text, seventh, tension) = form
+    let n = text.length()
+    if state.pos + n <= state.length && state.take(n) == text {
+      return (state.advance(n), Some(seventh), Some(tension))
+    }
+  }
+  (state, None, None)
 }
 
 ///|
@@ -147,6 +176,11 @@ fn parse_alteration(
   if state.pos + 2 <= state.length && state.take(2) == "b5" {
     return Ok((state.advance(2), Some(FlatFive)))
   }
+  // #5 / s5 をチェック(v1.4)
+  if state.pos + 2 <= state.length &&
+    (state.take(2) == "#5" || state.take(2) == "s5") {
+    return Ok((state.advance(2), Some(SharpFive)))
+  }
   // -5（ハーフディミニッシュの慣用表記 m7-5。クオリティ m +
   // セブンス 7 の直後のみ。`-` はグループ区切りと衝突するため）
   if allow_dash_five && state.pos + 2 <= state.length && state.take(2) == "-5" {
@@ -205,9 +239,12 @@ fn parse_single_option(
 ) -> Result[ChordOption, ParseError] {
   let trimmed = s.trim().to_owned()
 
-  // b5 をチェック
+  // b5 / #5 をチェック
   if trimmed == "b5" {
     return Ok(AlterationOpt(FlatFive))
+  }
+  if trimmed == "#5" || trimmed == "s5" {
+    return Ok(AlterationOpt(SharpFive))
   }
 
   // sus をチェック（sus で始まる文字列は度数を検証し、2/4/6 以外は InvalidSusDegree）
@@ -380,14 +417,33 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
   let (after_quality, quality) = parse_quality(state)
   state = after_quality
 
-  // 4. セブンス
-  let quartal_extras_pos = state.pos // q に不正な付加が続いた場合のエラー位置
-  let seventh = match parse_seventh(state, token) {
-    Ok((new_state, sev)) => {
-      state = new_state
-      sev
+  // 4. セブンス。慣用表記(59 / 2m11 / 1M9 など)を先に見る。
+  // 6/9 と 69 は、シックス + テンション 9 の略記として読む(v1.4)
+  let quartal_extras_pos = state.pos // q / 5 に不正な付加が続いた場合のエラー位置
+  let (after_ext, ext_seventh, implied_tension) = parse_extended_seventh(state)
+  let mut implied = implied_tension
+  let seventh = match ext_seventh {
+    Some(_) => {
+      state = after_ext
+      ext_seventh
     }
-    Err(e) => return Err(e)
+    None =>
+      match parse_seventh(state, token) {
+        Ok((new_state, sev)) => {
+          state = new_state
+          sev
+        }
+        Err(e) => return Err(e)
+      }
+  }
+  if seventh is Some(Sixth) {
+    if state.pos + 2 <= state.length && state.take(2) == "/9" {
+      state = state.advance(2)
+      implied = Some(Nine)
+    } else if state.current_char() is Some('9') {
+      state = state.advance(1)
+      implied = Some(Nine)
+    }
   }
 
   // 4b. セブンスの重複チェック（1M77 / 17M7 / 1M7add9 など）
@@ -408,11 +464,21 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
     Err(e) => return Err(e)
   }
 
-  // 6. 括弧内オプション
+  // 6. 括弧内オプション。略記のテンションは先頭に置く(括弧にも同じものがあれば 1 つ)
   let options = match parse_parenthesized_options(state, token) {
     Ok((new_state, opts)) => {
       state = new_state
-      opts
+      match implied {
+        Some(t) => {
+          let text = option_to_string(TensionOpt(t))
+          if opts.iter().any(fn(o) { option_to_string(o) == text }) {
+            opts
+          } else {
+            [TensionOpt(t), ..opts]
+          }
+        }
+        _ => opts
+      }
     }
     Err(e) => return Err(e)
   }
@@ -421,6 +487,11 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
   if quality is Some(Quartal) &&
     (seventh is Some(_) || alteration is Some(_) || options.length() > 0) {
     return Err(invalid_quartal_combination_error(token, quartal_extras_pos))
+  }
+  // 6c. パワーコード(5)も同じ(ルートと 5 度だけの響きなので)
+  if quality is Some(Power) &&
+    (seventh is Some(_) || alteration is Some(_) || options.length() > 0) {
+    return Err(invalid_power_chord_combination_error(token, quartal_extras_pos))
   }
 
   // 7. ベース音

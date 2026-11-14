@@ -245,10 +245,13 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>#4 s4 b7</code><span>シャープ（# / s どちらでも）・フラット</span>
     #|<code>2m 4dim 5aug</code><span>マイナー / ディミニッシュ / オーギュメント</span>
     #|<code>1q</code><span>4度堆積（ルート + 完全4度 + 完全4度）</span>
+    #|<code>15</code><span>パワーコード（ルート + 完全5度。Key: C なら C5）</span>
     #|<code>17 1M7 1maj7 16 1add9</code><span>セブンス・シックス・add（M7 と maj7 は同じ）</span>
     #|<code>1M7(b9,#11)</code><span>テンションは括弧内にカンマ区切り</span>
+    #|<code>59 2m11 1M9</code><span>略記（57(9) / 2m7(11) / 1M7(9) と同じ）</span>
+    #|<code>16/9</code><span>シックスナイン（16(9) と同じ）</span>
     #|<code>2m7-5</code><span>ハーフディミニッシュ（m7 の直後のみ。2m7b5 / 2m7(b5) と同じ）</span>
-    #|<code>1sus4 4M7(b5)</code><span>sus2/4/6・フラットファイブ</span>
+    #|<code>1sus4 4M7(b5) 57(#5)</code><span>sus2/4/6・フラットファイブ・シャープファイブ</span>
     #|<code>3m/5</code><span>スラッシュベース</span>
     #|<code>b3@red</code><span>強調色（red / blue / green、末尾）</span>
     #|<div class="chord-cheat-head">スロット</div>

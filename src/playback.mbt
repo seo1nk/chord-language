@@ -146,17 +146,14 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
     Some(Quartal) => 10
     _ => 7
   }
-  let mut has_third = true
   let intervals : Array[Int] = []
 
   // sus（括弧外・括弧内とも）は 3 度を置換、b5 は 5 度を変化
   let apply_alteration = fn(a : Alteration) {
     match a {
       FlatFive => fifth = 6
-      Sus(d) => {
-        has_third = false
-        third = degree_interval(d)
-      }
+      SharpFive => fifth = 8
+      Sus(d) => third = degree_interval(d)
     }
   }
   match node.alteration {
@@ -181,10 +178,9 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
     }
   }
   intervals.push(0)
-  if has_third {
+  // パワーコード(5)は 3 度を鳴らさない。sus は 3 度の位置に sus 音を鳴らす
+  if !(node.quality is Some(Power)) {
     intervals.push(third)
-  } else {
-    intervals.push(third) // sus 音
   }
   intervals.push(fifth)
   match node.seventh {

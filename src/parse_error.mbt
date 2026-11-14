@@ -16,6 +16,7 @@ pub enum ParseErrorKind {
   MissingBassDegree // スラッシュベースでディグリーが欠落
   InvalidSusDegree(String) // 不正なsusディグリー（2/4/6以外）
   InvalidQuartalCombination // q に付加要素(セブンス・sus・テンション等)が続いた
+  InvalidPowerChordCombination // パワーコード 5 に付加要素が続いた(v1.4)
 
   // フロントマターのエラー
   UnclosedFrontmatter // 閉じの --- が無い
@@ -57,6 +58,7 @@ pub fn ParseError::kind_name(self : ParseError) -> String {
     MissingBassDegree => "MissingBassDegree"
     InvalidSusDegree(_) => "InvalidSusDegree"
     InvalidQuartalCombination => "InvalidQuartalCombination"
+    InvalidPowerChordCombination => "InvalidPowerChordCombination"
     UnclosedFrontmatter => "UnclosedFrontmatter"
     InvalidFrontmatterField(_) => "InvalidFrontmatterField"
     InvalidKey(_) => "InvalidKey"
@@ -88,6 +90,8 @@ pub fn ParseError::message(self : ParseError) -> String {
       "不正な sus ディグリー '\{d}'(2 / 4 / 6 のみ)"
     InvalidQuartalCombination =>
       "q(4度堆積)にはセブンスや sus・テンションなどを付けられません"
+    InvalidPowerChordCombination =>
+      "パワーコード(15 など)にはセブンスや sus・テンションなどを付けられません"
     UnclosedFrontmatter =>
       "フロントマターが閉じていません(--- が必要)"
     InvalidFrontmatterField(f) =>
@@ -375,5 +379,18 @@ pub fn invalid_time_signature_error(time : String, line : Int) -> ParseError {
     position: None,
     line: Some(line),
     token: None,
+  }
+}
+
+///|
+pub fn invalid_power_chord_combination_error(
+  token : String,
+  pos : Int,
+) -> ParseError {
+  {
+    kind: InvalidPowerChordCombination,
+    position: Some(pos),
+    line: None,
+    token: Some(token),
   }
 }

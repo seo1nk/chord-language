@@ -65,6 +65,7 @@ fn tension_display(t : Tension) -> String {
 fn alteration_display(a : Alteration) -> String {
   match a {
     FlatFive => "♭5"
+    SharpFive => "#5"
     Sus(d) => "sus" + d.to_string()
   }
 }
@@ -87,6 +88,7 @@ fn chord_suffix_text(node : ChordNode) -> String {
     Some(Diminish) => "dim"
     Some(Augment) => "aug"
     Some(Quartal) => "q"
+    Some(Power) => "5"
     None => ""
   }
   let sev = match node.seventh {

@@ -229,6 +229,7 @@ fn highlight_chord_part(
     i = i + 1
   }
   push(line_no, col + start, col + i, "degree")
+  let degree_end = i
   // 以降は記号で区切られた部品に分ける
   let mut seg = i
   let mut kind = "quality"
@@ -258,7 +259,13 @@ fn highlight_chord_part(
       kind = "quality"
       continue
     }
-    if c == '/' && kind != "color" {
+    // 6/9 の /9 はベースではなくシックスの続き(9 は度数にならない)
+    let six_nine = c == '/' &&
+      i - 1 >= degree_end &&
+      chars[i - 1] == '6' &&
+      i + 1 < end &&
+      chars[i + 1] == '9'
+    if c == '/' && kind != "color" && !six_nine {
       flush(i)
       seg = i
       kind = "bass"
