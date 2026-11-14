@@ -7,8 +7,28 @@ let format_corpus : Array[String] = [
   "|1   4|  5 6 |   ", "[ key:+2 ] 1 [bpm:140]   [ time : 3/4 ] 4", "| 4M7 57 | 3m7 6m |\n> かぜが ふく まちの",
   "| 1 _ 4-5 6m | NC 2m7-5 1 % |\n> a _ b-c", "| 1   8x  |  \n> あ い", "5-_-5-6 1M7(b9, s11)\n> _-よう",
   "", "\n\n| 1 |\n\n", "---\nkey: C\n| 1 |", "1\n> 歌詞が 多すぎる 行 です",
-  "[key: H] 1   4", "1 [bpm: 9999]   4",
+  "[key: H] 1   4", "1 [bpm: 9999]   4", "|1 8x|4||  \n> あ い", "  1 8x|  (b9|) 4",
+  "[key: +2 | 1 8x", "| 1 [bpm:9999]|4",
 ]
+
+///|
+/// 整形で変わってはいけない部分(楽譜の中身と、エラーの種類・行・トークン)。
+/// エラーの桁位置とメッセージ中の桁は、小節線の前後の空白で動いてよい
+fn format_meaning(input : String) -> String {
+  let result = @chord_language.parse(input)
+  let errors = result.errors.map(fn(e) {
+    let line = match e.line {
+      Some(l) => l.to_string()
+      None => "-"
+    }
+    let token = match e.token {
+      Some(t) => t
+      None => "-"
+    }
+    e.kind_name() + "@" + line + ":" + token
+  })
+  result.score.to_json_value().stringify() + "\n" + errors.join("\n")
+}
 
 ///|
 test "format: keeps the line count, the meaning, and is idempotent" {
@@ -20,8 +40,8 @@ test "format: keeps the line count, the meaning, and is idempotent" {
       msg="行数: " + input,
     )
     assert_eq(
-      @chord_language.parse_to_json(out),
-      @chord_language.parse_to_json(input),
+      format_meaning(out),
+      format_meaning(input),
       msg="意味: " + input,
     )
     assert_eq(@chord_language.format_score(out), out, msg="冪等: " + input)
@@ -62,13 +82,22 @@ test "format: keeps the spelling of chords as written" {
 }
 
 ///|
-test "format: lines with errors are left as written (only trailing spaces removed)" {
+test "format: lines with errors keep their text, only bar lines get one space around" {
   inspect(
     @chord_language.format_score("| 1   8x  |  \n> あ   い  \n|1  4|"),
     content=(
-      #|| 1   8x  |
+      #|| 1   8x |
       #|> あ   い
       #|| 1 4 |
+    ),
+  )
+  // 行頭の字下げは小節線の外側なので詰める。|| は | | になる。
+  // 括弧の中の | と、小節線に接していない空白は書いたとおり
+  inspect(
+    @chord_language.format_score("  |1 8x||4  5|\n  1   8x|(b9|)  4"),
+    content=(
+      #|| 1 8x | | 4  5 |
+      #|  1   8x | (b9|)  4
     ),
   )
 }

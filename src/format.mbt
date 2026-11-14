@@ -3,9 +3,11 @@
 ///
 /// 約束:
 /// - 行数を変えない(n 行目は n 行目のまま。エディタのカーソルの行を保つため)
-/// - 意味を変えない(整形の前後で parse の結果が同じ)。何度かけても同じ結果になる
+/// - 意味を変えない(整形の前後で parse の結果が同じ。エラーの桁位置だけは
+///   小節線の前後の空白のぶん動くことがある)。何度かけても同じ結果になる
 /// - 正しく読めた行だけを整える。エラーのある行と、その行に付いた歌詞行は、
-///   行末の空白を落とすだけにする(書きかけを壊さない)
+///   行末の空白を落とすだけにする(書きかけを壊さない)。ただしエラーのある
+///   コード行でも、小節線の前後は空白 1 つにそろえる(`|1 8x|` → `| 1 8x |`)
 /// - コード記号の綴りは書いたとおりに残す(#4 と s4、M7 と maj7 などを書き換えない)
 ///
 /// 整え方:
@@ -45,6 +47,12 @@ pub fn format_score(input : String) -> String {
       continue
     }
     if error_lines.contains(line_no) {
+      // エラーのある行は書いたとおりに残す。ただしコード行なら、小節線の前後の
+      // 空白だけはそろえる(小節線は空白と同じくトークンを区切るので、
+      // トークンの中身は変わらない。変わるのはエラーの桁位置だけ)
+      if !trimmed.has_prefix(">") {
+        out[idx] = space_bar_lines(rstrip(lines[idx]))
+      }
       idx = idx + 1
       continue
     }
@@ -89,6 +97,55 @@ pub fn format_score(input : String) -> String {
     }
   }
   out.join("\n")
+}
+
+///|
+/// 小節線の前後を空白 1 つにする(行頭・行末の小節線の外側は空けない)。
+/// 小節線の位置は字句解析と同じ規則で決める(括弧の中や指示の中の | は触らない)。
+/// それ以外の空白・文字は書いたとおりに残す
+fn space_bar_lines(line : String) -> String {
+  let chars = line.to_array()
+  let len = chars.length()
+  let is_bar : Array[Bool] = Array::make(len, false)
+  for t in tokenize_line(line) {
+    if t.kind is BarTok {
+      is_bar[t.col] = true
+    }
+  }
+  let sb = StringBuilder::new()
+  let mut i = 0
+  while i < len {
+    if is_whitespace(chars[i]) {
+      // 空白の連続。前後のどちらかが小節線なら 1 つにまとめる
+      let mut j = i
+      while j < len && is_whitespace(chars[j]) {
+        j = j + 1
+      }
+      let at_start = i == 0
+      let touches_bar = (i > 0 && is_bar[i - 1]) || (j < len && is_bar[j])
+      if !touches_bar {
+        for k in i..<j {
+          sb.write_char(chars[k])
+        }
+      } else if !at_start && j < len {
+        sb.write_char(' ')
+      }
+      i = j
+      continue
+    }
+    if is_bar[i] && i > 0 && !is_whitespace(chars[i - 1]) {
+      sb.write_char(' ')
+    }
+    sb.write_char(chars[i])
+    if is_bar[i] &&
+      i + 1 < len &&
+      !is_whitespace(chars[i + 1]) &&
+      !is_bar[i + 1] {
+      sb.write_char(' ')
+    }
+    i = i + 1
+  }
+  sb.to_string()
 }
 
 ///|
