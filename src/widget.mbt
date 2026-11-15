@@ -248,8 +248,9 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>15</code><span>パワーコード（ルート + 完全5度。Key: C なら C5）</span>
     #|<code>17 1M7 1maj7 16 1add9</code><span>セブンス・シックス・add（M7 と maj7 は同じ）</span>
     #|<code>1M7(b9,#11)</code><span>テンションは括弧内にカンマ区切り</span>
-    #|<code>59 2m11 1M9</code><span>略記（57(9) / 2m7(11) / 1M7(9) と同じ）</span>
-    #|<code>16/9</code><span>シックスナイン（16(9) と同じ）</span>
+    #|<code>579 169 57b9#11</code><span>テンションは括弧なしでも書ける（表示は括弧つき。57(9) / 16(9) / 57(b9,#11) と同じ）</span>
+    #|<code>59 2m11</code><span>7 は補わない（5(9) / 2m(11) と同じ。7 を入れるなら 579）</span>
+    #|<code>1M9 1maj9</code><span>M9・M11・M13 は M7 を補う（1M7(9) と同じ）</span>
     #|<code>2m7-5</code><span>ハーフディミニッシュ（m7 の直後のみ。2m7b5 / 2m7(b5) と同じ）</span>
     #|<code>1sus4 4M7(b5) 57(#5)</code><span>sus2/4/6・フラットファイブ・シャープファイブ</span>
     #|<code>3m/5</code><span>スラッシュベース</span>

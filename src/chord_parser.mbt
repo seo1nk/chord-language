@@ -87,31 +87,62 @@ fn parse_quality(state : ParserState) -> (ParserState, Quality?) {
 }
 
 ///|
-/// 慣用表記のテンション入りセブンス(v1.4)。`9` `11` `13` はドミナントセブンス +
-/// テンション、`M9` `maj9` などはメジャーセブンス + テンションの略記として読む
-/// (`59` = `57(9)`、`2m11` = `2m7(11)`、`1M9` = `1M7(9)`)。同じ AST になる
-fn parse_extended_seventh(
-  state : ParserState,
-) -> (ParserState, Seventh?, Tension?) {
-  let forms : Array[(String, Seventh, Tension)] = [
-    ("maj13", MajorSeventh, Thirteen),
-    ("maj11", MajorSeventh, Eleven),
-    ("maj9", MajorSeventh, Nine),
-    ("M13", MajorSeventh, Thirteen),
-    ("M11", MajorSeventh, Eleven),
-    ("M9", MajorSeventh, Nine),
-    ("13", Seventh, Thirteen),
-    ("11", Seventh, Eleven),
-    ("9", Seventh, Nine),
+/// メジャーセブンス + テンションの略記(v1.4)。`M9` `M11` `M13`(`maj9` なども可)は
+/// メジャーセブンスを補って読む(`1M9` = `1M7(9)`)。同じ AST になる
+fn parse_major_tension(state : ParserState) -> (ParserState, Tension?) {
+  let forms : Array[(String, Tension)] = [
+    ("maj13", Thirteen),
+    ("maj11", Eleven),
+    ("maj9", Nine),
+    ("M13", Thirteen),
+    ("M11", Eleven),
+    ("M9", Nine),
   ]
   for form in forms {
-    let (text, seventh, tension) = form
+    let (text, tension) = form
     let n = text.length()
     if state.pos + n <= state.length && state.take(n) == text {
-      return (state.advance(n), Some(seventh), Some(tension))
+      return (state.advance(n), Some(tension))
     }
   }
-  (state, None, None)
+  (state, None)
+}
+
+///|
+/// 括弧なしのテンションを続くかぎり読む(v1.4)。括弧の中に書いたものと同じ意味で、
+/// セブンスは補わない(`59` = `5(9)`、`579` = `57(9)`、`57b9#11` = `57(b9,#11)`)。
+/// `b5` `#5` はオルタレーションなので、ここでは読まない
+fn parse_bare_tensions(state : ParserState) -> (ParserState, Array[Tension]) {
+  let forms : Array[(String, Tension)] = [
+    ("b13", FlatThirteen),
+    ("#11", SharpEleven),
+    ("s11", SharpEleven),
+    ("b9", FlatNine),
+    ("#9", SharpNine),
+    ("s9", SharpNine),
+    ("13", Thirteen),
+    ("11", Eleven),
+    ("9", Nine),
+  ]
+  let tensions : Array[Tension] = []
+  let mut state = state
+  while true {
+    let mut found = false
+    for form in forms {
+      let (text, tension) = form
+      let n = text.length()
+      if state.pos + n <= state.length && state.take(n) == text {
+        tensions.push(tension)
+        state = state.advance(n)
+        found = true
+        break
+      }
+    }
+    if !found {
+      break
+    }
+  }
+  (state, tensions)
 }
 
 ///|
@@ -417,15 +448,15 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
   let (after_quality, quality) = parse_quality(state)
   state = after_quality
 
-  // 4. セブンス。慣用表記(59 / 2m11 / 1M9 など)を先に見る。
-  // 6/9 と 69 は、シックス + テンション 9 の略記として読む(v1.4)
+  // 4. セブンス。M9 / maj9 など(メジャーセブンスを補う略記)を先に見る
   let quartal_extras_pos = state.pos // q / 5 に不正な付加が続いた場合のエラー位置
-  let (after_ext, ext_seventh, implied_tension) = parse_extended_seventh(state)
-  let mut implied = implied_tension
-  let seventh = match ext_seventh {
-    Some(_) => {
-      state = after_ext
-      ext_seventh
+  let bare : Array[Tension] = []
+  let (after_major, major_tension) = parse_major_tension(state)
+  let seventh = match major_tension {
+    Some(t) => {
+      state = after_major
+      bare.push(t)
+      Some(MajorSeventh)
     }
     None =>
       match parse_seventh(state, token) {
@@ -436,17 +467,13 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
         Err(e) => return Err(e)
       }
   }
-  if seventh is Some(Sixth) {
-    if state.pos + 2 <= state.length && state.take(2) == "/9" {
-      state = state.advance(2)
-      implied = Some(Nine)
-    } else if state.current_char() is Some('9') {
-      state = state.advance(1)
-      implied = Some(Nine)
-    }
-  }
 
-  // 4b. セブンスの重複チェック（1M77 / 17M7 / 1M7add9 など）
+  // 4b. 括弧なしのテンション(59 / 579 / 57b9#11 など)。セブンスは補わない
+  let (after_bare, bare_before) = parse_bare_tensions(state)
+  state = after_bare
+  bare.append(bare_before)
+
+  // 4c. セブンスの重複チェック（1M77 / 17M7 / 1M7add9 / 1M97 / 579M7 など）
   if seventh is Some(_) {
     match parse_seventh(state, token) {
       Ok((_, Some(_))) => return Err(duplicate_seventh_error(token, state.pos))
@@ -455,7 +482,9 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
   }
 
   // 5. オルタレーション（括弧外）。-5 は m7 の直後のみ受理する
-  let allow_dash_five = quality is Some(Minor) && seventh is Some(Seventh)
+  let allow_dash_five = quality is Some(Minor) &&
+    seventh is Some(Seventh) &&
+    bare.is_empty()
   let alteration = match parse_alteration(state, token, allow_dash_five) {
     Ok((new_state, alt)) => {
       state = new_state
@@ -464,20 +493,28 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
     Err(e) => return Err(e)
   }
 
-  // 6. 括弧内オプション。略記のテンションは先頭に置く(括弧にも同じものがあれば 1 つ)
-  let options = match parse_parenthesized_options(state, token) {
+  // 5b. オルタレーションの後にも括弧なしのテンションを書ける(57sus4b9 など)
+  let (after_bare, bare_after) = parse_bare_tensions(state)
+  state = after_bare
+  bare.append(bare_after)
+
+  // 6. 括弧内オプション。括弧なしのテンションを先に置く(同じものは 1 つにまとめる)
+  let options : Array[ChordOption] = []
+  let seen : Array[String] = []
+  for t in bare {
+    let text = option_to_string(TensionOpt(t))
+    if !seen.contains(text) {
+      seen.push(text)
+      options.push(TensionOpt(t))
+    }
+  }
+  match parse_parenthesized_options(state, token) {
     Ok((new_state, opts)) => {
       state = new_state
-      match implied {
-        Some(t) => {
-          let text = option_to_string(TensionOpt(t))
-          if opts.iter().any(fn(o) { option_to_string(o) == text }) {
-            opts
-          } else {
-            [TensionOpt(t), ..opts]
-          }
+      for o in opts {
+        if !seen.contains(option_to_string(o)) {
+          options.push(o)
         }
-        _ => opts
       }
     }
     Err(e) => return Err(e)

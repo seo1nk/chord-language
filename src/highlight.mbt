@@ -259,13 +259,18 @@ fn highlight_chord_part(
       kind = "quality"
       continue
     }
-    // 6/9 の /9 はベースではなくシックスの続き(9 は度数にならない)
-    let six_nine = c == '/' &&
-      i - 1 >= degree_end &&
-      chars[i - 1] == '6' &&
-      i + 1 < end &&
-      chars[i + 1] == '9'
-    if c == '/' && kind != "color" && !six_nine {
+    // 括弧なしのテンション(59 / 57b9#11 など)は括弧の中と同じ色にする
+    if kind == "quality" {
+      let n = bare_tension_length(chars, i, end, degree_end)
+      if n > 0 {
+        flush(i)
+        push(line_no, col + i, col + i + n, "tension")
+        i = i + n
+        seg = i
+        continue
+      }
+    }
+    if c == '/' && kind != "color" {
       flush(i)
       seg = i
       kind = "bass"
@@ -277,4 +282,64 @@ fn highlight_chord_part(
     i = i + 1
   }
   flush(end)
+}
+
+///|
+/// chars[i..] が括弧なしのテンション(b9 / 9 / #9 / 11 / #11 / b13 / 13)なら
+/// その長さ、そうでなければ 0。`add9` の 9 と、`M9` `maj9`(メジャーセブンスを
+/// 補う略記)の 9 はセブンスの一部なので数えない
+fn bare_tension_length(
+  chars : Array[Char],
+  i : Int,
+  end : Int,
+  degree_end : Int,
+) -> Int {
+  let mut j = i
+  if chars[j] == 'b' || chars[j] == '#' || chars[j] == 's' {
+    j = j + 1
+  }
+  let altered = j > i
+  let number = if j < end && chars[j] == '9' {
+    1
+  } else if j + 1 < end &&
+    chars[j] == '1' &&
+    (chars[j + 1] == '1' || chars[j + 1] == '3') {
+    2
+  } else {
+    0
+  }
+  if number == 0 {
+    return 0
+  }
+  // b / # / s が付くのは b9 #9 #11 b13 だけ(b11 #13 はテンションではない)
+  if altered {
+    let flat = chars[i] == 'b'
+    let valid = if number == 1 {
+      true
+    } else if chars[j + 1] == '1' {
+      !flat
+    } else {
+      flat
+    }
+    if !valid {
+      return 0
+    }
+  }
+  let before = fn(text : String) -> Bool {
+    let t = text.to_array()
+    let from = i - t.length()
+    if from < degree_end {
+      return false
+    }
+    for k, c in t {
+      if chars[from + k] != c {
+        return false
+      }
+    }
+    true
+  }
+  if !altered && (before("add") || before("M") || before("maj")) {
+    return 0
+  }
+  j - i + number
 }
