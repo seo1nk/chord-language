@@ -553,7 +553,7 @@ fn make_degree_chips(
 ) -> ((KeyChange, Bool) -> String, (ChordNode) -> String, () -> Unit) {
   let declared_info = match parse_key_name(declared) {
     Some(k) => k
-    None => { letter_idx: 0, alter: 0 } // C
+    None => { letter_idx: 0, alter: 0, minor: false } // C
   }
   let mut cur_pc = key_pitch_class(declared_info)
   // チップの表示キー名は実音タブと同じ綴りルールで解決する
@@ -718,7 +718,7 @@ pub fn render_html(ast : ScoreAST) -> String {
 fn render_notes_score_html(score : ScoreAST, selected : KeyInfo) -> String {
   let declared = match parse_key_name(score.key_or_default()) {
     Some(k) => k
-    None => { letter_idx: 0, alter: 0 } // C
+    None => { letter_idx: 0, alter: 0, minor: false } // C
   }
   let cursor = KeyCursor::make(selected, declared)
   // 実音タブの初期キーチップは実効キー = プルダウンの選択キー（移調に追従）

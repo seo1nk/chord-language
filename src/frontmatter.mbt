@@ -6,29 +6,10 @@
 /// 返り値: (メタデータ, エラー列, 本文の開始行インデックス)
 
 ///|
-/// キー名の検証: A-G + 任意の #/b（メジャーキーのみ）
+/// キー名の検証: A-G + 任意の #/b、短調は末尾に m（"Am" "C#m" "Bbm"。v1.5）。
+/// 解釈は transpose.mbt の parse_key_name と同じ（単一ソース）
 fn is_valid_key(s : String) -> Bool {
-  let chars = s.to_array()
-  match chars.length() {
-    1 | 2 => {
-      let head_ok = match chars[0] {
-        'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' => true
-        _ => false
-      }
-      if !head_ok {
-        return false
-      }
-      if chars.length() == 2 {
-        match chars[1] {
-          '#' | 'b' => true
-          _ => false
-        }
-      } else {
-        true
-      }
-    }
-    _ => false
-  }
+  parse_key_name(s) is Some(_)
 }
 
 ///|

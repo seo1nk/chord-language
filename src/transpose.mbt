@@ -4,12 +4,17 @@
 /// 参照実装: tonal.js `Progression.fromRomanNumerals` / ChordSheetJS `toChordSymbol(key)`。
 /// メジャースケール上の音度をレター（C-B）とオルタレーションで解決するため、
 /// 異名同音のスペリングが正しくなる（例: key F# の 7 は E#、key Bb の b3 は D♭）。
+///
+/// 短調（`key: Am`。v1.5）: ディグリーは**主音から数えた長音階の度数**のまま
+/// （長調と同じ）。短調だから意味が変わる数字はない。Am なら 1 = A、b3 = C、
+/// b6 = F、b7 = G。主音の綴りから同じ規則で解決する（key C#m の b6 は A）。
 
 ///|
-/// 実音キー（メジャーのみ）
+/// 実音キー
 priv struct KeyInfo {
   letter_idx : Int // 0=C, 1=D, 2=E, 3=F, 4=G, 5=A, 6=B
   alter : Int // # = +1, b = -1
+  minor : Bool // 短調（キー名の末尾の m）
 }
 
 ///|
@@ -23,9 +28,12 @@ fn letter_name(idx : Int) -> String {
 }
 
 ///|
-/// キー名（"C" | "F#" | "Bb" など）をパースする。フロントマターで検証済みの値を想定
+/// キー名（"C" | "F#" | "Bb" | 短調は末尾に m: "Am" "C#m" "Bbm"）をパースする。
+/// キーの検証（フロントマター・転調指示）もこの関数で行う
 fn parse_key_name(key : String) -> KeyInfo? {
-  let chars = key.to_array()
+  let all = key.to_array()
+  let minor = all.length() >= 2 && all[all.length() - 1] == 'm'
+  let chars = if minor { all[0:all.length() - 1].to_owned() } else { all }
   if chars.length() < 1 || chars.length() > 2 {
     return None
   }
@@ -48,7 +56,7 @@ fn parse_key_name(key : String) -> KeyInfo? {
   } else {
     0
   }
-  Some({ letter_idx, alter })
+  Some({ letter_idx, alter, minor })
 }
 
 ///|
@@ -134,7 +142,7 @@ fn key_pitch_class(key : KeyInfo) -> Int {
 }
 
 ///|
-/// KeyInfo をキー名（"C" "F#" "Bb" など）に戻す（表示用）
+/// KeyInfo をキー名（"C" "F#" "Bb" "Am" など）に戻す（表示用）
 fn key_info_name(key : KeyInfo) -> String {
   let alter_str = match key.alter {
     1 => "#"
@@ -142,7 +150,7 @@ fn key_info_name(key : KeyInfo) -> String {
     0 => ""
     n => if n > 0 { "#".repeat(n) } else { "b".repeat(-n) }
   }
-  letter_name(key.letter_idx) + alter_str
+  letter_name(key.letter_idx) + alter_str + (if key.minor { "m" } else { "" })
 }
 
 ///|
@@ -167,19 +175,50 @@ fn canonical_key_names_flat() -> Array[String] {
 }
 
 ///|
-/// 綴り優先度つきの正準キー解決（pref > 0 = ♯側、pref < 0 = ♭側、0 = 既定表）
-fn canonical_key_info_pref(pc : Int, pref : Int) -> KeyInfo {
-  let names = if pref > 0 {
-    canonical_key_names_sharp()
-  } else if pref < 0 {
-    canonical_key_names_flat()
-  } else {
-    canonical_key_names()
+/// 短調の正準 12 キー表（ピッチクラス 0-11 → キー名）。調号の少ない側の綴り
+/// （C#m は 4 つの #、Dbm は 8 つの b になるので C#m。D#m と Ebm は 6 つずつで、
+/// よく使われる Ebm）。長調の表と同じく、キープルダウンの一覧と転調先の綴りの単一ソース
+fn canonical_minor_key_names() -> Array[String] {
+  ["Cm", "C#m", "Dm", "Ebm", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "Bbm", "Bm"]
+}
+
+///|
+fn canonical_minor_key_names_sharp() -> Array[String] {
+  ["Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"]
+}
+
+///|
+fn canonical_minor_key_names_flat() -> Array[String] {
+  ["Cm", "Dbm", "Dm", "Ebm", "Em", "Fm", "Gbm", "Gm", "Abm", "Am", "Bbm", "Bm"]
+}
+
+///|
+/// 長調・短調の正準表（pref の意味は canonical_key_info_pref と同じ）
+fn canonical_key_table(minor : Bool, pref : Int) -> Array[String] {
+  match (minor, pref) {
+    (false, p) if p > 0 => canonical_key_names_sharp()
+    (false, p) if p < 0 => canonical_key_names_flat()
+    (false, _) => canonical_key_names()
+    (true, p) if p > 0 => canonical_minor_key_names_sharp()
+    (true, p) if p < 0 => canonical_minor_key_names_flat()
+    (true, _) => canonical_minor_key_names()
   }
-  match parse_key_name(names[(pc % 12 + 12) % 12]) {
+}
+
+///|
+/// 綴り優先度つきで、ピッチクラスを長調・短調の正準キーに解決する（転調先のキー用）
+fn canonical_key_info_mode(pc : Int, pref : Int, minor : Bool) -> KeyInfo {
+  match parse_key_name(canonical_key_table(minor, pref)[(pc % 12 + 12) % 12]) {
     Some(k) => k
-    None => { letter_idx: 0, alter: 0 } // 正準表は常にパース可能（保険）
+    None => { letter_idx: 0, alter: 0, minor } // 正準表は常にパース可能（保険）
   }
+}
+
+///|
+/// 綴り優先度つきの正準キー解決（pref > 0 = ♯側、pref < 0 = ♭側、0 = 既定表）。
+/// 長調の表を使う（音名の綴り直しにも使う）
+fn canonical_key_info_pref(pc : Int, pref : Int) -> KeyInfo {
+  canonical_key_info_mode(pc, pref, false)
 }
 
 ///|
@@ -187,7 +226,8 @@ fn canonical_key_info_pref(pc : Int, pref : Int) -> KeyInfo {
 /// （従来どおり既定表）、あえて異名同音側を選んだときだけその向きに従う
 /// （C# 選択 → ♯側、Gb 選択 → ♭側）
 fn spelling_pref(key : KeyInfo) -> Int {
-  let canonical = canonical_key_info(key_pitch_class(key))
+  // 短調は短調の表と比べる（C#m は表どおり = 0、Dbm はあえて ♭ 側 = -1）
+  let canonical = canonical_key_info_mode(key_pitch_class(key), 0, key.minor)
   if canonical.letter_idx == key.letter_idx && canonical.alter == key.alter {
     0
   } else if key.alter > 0 {
@@ -200,13 +240,6 @@ fn spelling_pref(key : KeyInfo) -> Int {
 }
 
 ///|
-/// ピッチクラスを正準 12 キー表のキーに解決する
-fn canonical_key_info(pc : Int) -> KeyInfo {
-  match parse_key_name(canonical_key_names()[(pc % 12 + 12) % 12]) {
-    Some(k) => k
-    None => { letter_idx: 0, alter: 0 } // 正準表は常にパース可能（保険）
-  }
-}
 
 ///|
 /// 文書順の転調（[key: 値]）を畳み込むキーカーソル。
@@ -233,15 +266,17 @@ fn KeyCursor::make(selected : KeyInfo, declared : KeyInfo) -> KeyCursor {
 
 ///|
 /// 転調指示を 1 つ適用して実効キーを進める。
-/// - 相対: 現在の実効キーに半音数を合成し、正準 12 キー表で綴る
+/// - 相対: 現在の実効キーに半音数を合成し、正準 12 キー表で綴る（長調・短調はそのまま）
 /// - 絶対: ソースのキーに delta を適用する。delta = 0 なら原文の綴りを尊重し、
-///   移調時（delta ≠ 0）は正準 12 キー表で綴る
+///   移調時（delta ≠ 0）は正準 12 キー表で綴る（長調・短調は指示どおり。`[key: C]` で
+///   短調から長調へ移れる）
 fn KeyCursor::apply(self : KeyCursor, change : KeyChange) -> Unit {
   match change {
     RelativeKey(n) =>
-      self.current = canonical_key_info_pref(
+      self.current = canonical_key_info_mode(
         key_pitch_class(self.current) + n + 12,
         self.pref,
+        self.current.minor,
       )
     AbsoluteKey(name) =>
       match parse_key_name(name) {
@@ -249,9 +284,10 @@ fn KeyCursor::apply(self : KeyCursor, change : KeyChange) -> Unit {
           if self.delta == 0 {
             self.current = src
           } else {
-            self.current = canonical_key_info_pref(
+            self.current = canonical_key_info_mode(
               key_pitch_class(src) + self.delta,
               self.pref,
+              src.minor,
             )
           }
         None => () // 検証済みの絶対キーのみ AST に載るため到達しない

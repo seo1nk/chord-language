@@ -437,9 +437,12 @@ test "frontmatter errors" {
     @chord_language.InvalidKey(_) => () // OK
     _ => fail("Expected InvalidKey")
   }
-  match single_error("---\nkey: Gm\n---\n1").kind {
-    @chord_language.InvalidKey(_) => () // OK
-    _ => fail("Expected InvalidKey (minor keys unsupported)")
+  // 短調は末尾に小文字の m だけ(v1.5)。M や小文字の音名、重ねた m は不正
+  for bad in ["am", "AM", "Amm", "Hm", "A#bm"] {
+    match single_error("---\nkey: " + bad + "\n---\n1").kind {
+      @chord_language.InvalidKey(_) => () // OK
+      _ => fail("Expected InvalidKey for " + bad)
+    }
   }
   // 未知のフィールド
   let e = single_error("---\ncomposer: X\n---\n1")

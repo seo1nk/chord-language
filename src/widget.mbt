@@ -5,11 +5,11 @@
 /// （DOM 構造の契約は docs/api.md §3.5）。
 
 ///|
-/// キープルダウンに載せるキー一覧（12 半音）。
-/// 正準 12 キー表（transpose.mbt の canonical_key_names）から導出する
+/// キープルダウンに載せるキー一覧（12 半音）。宣言キーが短調なら短調の 12 キー。
+/// 正準 12 キー表（transpose.mbt）から導出する
 /// （相対転調のスペリングと同じ単一ソース。二重定義しない）
-fn widget_keys() -> Array[String] {
-  canonical_key_names()
+fn widget_keys(minor : Bool) -> Array[String] {
+  canonical_key_table(minor, 0)
 }
 
 ///|
@@ -22,7 +22,12 @@ fn key_display_label(key : String) -> String {
 /// キープルダウンの選択肢を組み立てる。
 /// 宣言キーが一覧と異名同音（例: C# と Db）の場合は、そのスロットを宣言の綴りで置き換える
 fn widget_key_options(initial_key : String) -> Array[String] {
-  let keys = widget_keys()
+  let keys = widget_keys(
+    match parse_key_name(initial_key) {
+      Some(k) => k.minor
+      None => false
+    },
+  )
   match parse_key_name(initial_key) {
     Some(ki) => {
       let pc = key_pitch_class(ki)
@@ -267,6 +272,7 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>[bpm: 140] [time: 3/4]</code><span>テンポ・拍子の変更（単独行でもコード行の途中でも）。次に書いたコードから効く</span>
     #|<code>&gt; ひかりの _ _-さきへ</code><span>直前のコード行への歌詞。空白 = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース、- = 拍分割（_-さきへ で後半から）</span>
     #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）。キーを宣言すると冒頭にキーチップが出る</span>
+    #|<code>key: Am</code><span>短調は末尾に m。数字は長調と同じく主音から数える（Am F G = 1m b6 b7）</span>
     #|<code>:2m7:</code><span>インラインコード譜（::: の外の本文中に 1 コード。ディグリー表示のみ）</span>
     #|<div class="chord-cheat-head">例: 2-5-1（コピーして試してみてください）</div>
     #|<pre class="chord-cheat-example">:::

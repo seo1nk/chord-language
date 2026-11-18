@@ -96,7 +96,8 @@ pub fn ParseError::message(self : ParseError) -> String {
       "フロントマターが閉じていません(--- が必要)"
     InvalidFrontmatterField(f) =>
       "未知のフロントマターフィールド '\{f}'(key / bpm / time のみ)"
-    InvalidKey(k) => "不正なキー '\{k}'(A〜G + 任意の # / b)"
+    InvalidKey(k) =>
+      "不正なキー '\{k}'(A〜G + 任意の # / b。短調は末尾に m)"
     InvalidTempo(t) => "不正な bpm '\{t}'(20〜400 の整数)"
     InvalidTimeSignature(t) =>
       "不正な拍子 '\{t}'(使えるのは 1/2 2/2 2/4 3/4 4/4 5/4 6/4 3/8 6/8 9/8 12/8)"

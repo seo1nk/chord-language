@@ -240,7 +240,7 @@ pub fn parse_to_playback(input : String, key : String) -> String {
     None =>
       match parse_key_name(result.score.key_or_default()) {
         Some(k) => k
-        None => { letter_idx: 0, alter: 0 } // C
+        None => { letter_idx: 0, alter: 0, minor: false } // C
       }
   }
   let mut tonic_pc = key_pitch_class(key_info)
