@@ -360,6 +360,7 @@ fn parse_key_change_token(text : String) -> KeyChange? {
 ///|
 /// 歌詞行（> ...）を断片に分割する。
 /// - 空白区切り。断片中の `_` は表示上のスペース、`_` 単独は「歌詞なし」
+/// - `|` も区切り(コード行の小節線とそろえて書けるように。歌詞の断片には数えない。v1.7)
 fn parse_lyric_fragments(trimmed : String) -> Array[String?] {
   // 先頭の > を除去
   let body = trimmed.unsafe_substring(start=1, end=trimmed.length())
@@ -377,7 +378,8 @@ fn parse_lyric_fragments(trimmed : String) -> Array[String?] {
     }
   }
   for c in body {
-    if is_whitespace(c) {
+    // | は小節線の見た目に合わせて書いたもの(v1.7)。空白と同じ区切りとして読み飛ばす
+    if is_whitespace(c) || c == '|' {
       flush()
     } else {
       sb.write_char(c)

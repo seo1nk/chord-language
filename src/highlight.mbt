@@ -117,9 +117,15 @@ fn highlight_body_line(
         i = i + 1
         continue
       }
+      // 歌詞の行の | は区切り(小節線と同じ色。v1.7)
+      if chars[i] == '|' {
+        push(line_no, i, i + 1, "bar")
+        i = i + 1
+        continue
+      }
       // 断片 1 つ。_ と - は記号として分ける
       let mut run_start = i
-      while i < last && !is_whitespace(chars[i]) {
+      while i < last && !is_whitespace(chars[i]) && chars[i] != '|' {
         let c = chars[i]
         if c == '_' || c == '-' {
           push(line_no, run_start, i, "lyric")

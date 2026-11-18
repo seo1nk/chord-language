@@ -223,12 +223,13 @@ fn format_code_line(line : String) -> String {
 }
 
 ///|
-/// 歌詞の断片(空白区切り)
+/// 歌詞の断片(空白区切り。| も区切りで、断片には数えない — パーサと同じ。v1.7)
 fn lyric_fragments_raw(trimmed : String) -> Array[String] {
   let body = trimmed.unsafe_substring(start=1, end=trimmed.length())
   body
   .split(" ")
   .flat_map(fn(v) { v.split("\t") })
+  .flat_map(fn(v) { v.split("|") })
   .map(fn(v) { v.to_owned() })
   .filter(fn(v) { v != "" })
   .to_array()
@@ -236,7 +237,14 @@ fn lyric_fragments_raw(trimmed : String) -> Array[String] {
 
 ///|
 fn format_lyric_plain(trimmed : String) -> String {
-  let frags = lyric_fragments_raw(trimmed)
+  // 揃える相手のコード行が無いので、| も書いたまま残す(空白だけをそろえる)
+  let body = trimmed.unsafe_substring(start=1, end=trimmed.length())
+  let frags = body
+    .split(" ")
+    .flat_map(fn(v) { v.split("\t") })
+    .map(fn(v) { v.to_owned() })
+    .filter(fn(v) { v != "" })
+    .to_array()
   if frags.is_empty() {
     ">"
   } else {
@@ -247,10 +255,12 @@ fn format_lyric_plain(trimmed : String) -> String {
 ///|
 /// コード行と、その下の歌詞行を、縦をそろえて整える。
 /// 各スロットの書き始めの桁に、そのスロットの歌詞の書き始めを置く。
-/// スロットの幅は max(コードの幅, 歌詞の幅) とし、次のトークンはその後ろから始める
+/// スロットの幅は max(コードの幅, 歌詞の幅) とし、次のトークンはその後ろから始める。
+/// 歌詞の行に | が書いてあれば、コード行の小節線の真下に | を置き直す(v1.7)
 fn format_code_with_lyric(code : String, lyric : String) -> (String, String) {
   let tokens = format_tokens(code)
   let frags = lyric_fragments_raw(lyric.trim().to_owned())
+  let keep_bars = lyric.contains("|")
   let code_sb = StringBuilder::new()
   let lyric_sb = StringBuilder::new()
   let mut code_col = 0
@@ -303,6 +313,15 @@ fn format_code_with_lyric(code : String, lyric : String) -> (String, String) {
         }
       }
       slot = slot + 1
+    } else if keep_bars && text == "|" && slot > 0 {
+      // 小節線の真下に | を置く(最低 1 つは空白を空ける)。行頭の小節線は写さない
+      // (歌詞の行は "> " で始まるので、置くと歌詞が右へずれてしまう)
+      let target = if code_col > lyric_col { code_col } else { lyric_col + 1 }
+      for _k in lyric_col..<target {
+        lyric_sb.write_char(' ')
+      }
+      lyric_sb.write_char('|')
+      lyric_col = target + 1
     }
     code_sb.write_string(text)
     let pad = width - display_width(text)
