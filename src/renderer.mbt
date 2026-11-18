@@ -75,6 +75,7 @@ fn option_display(opt : ChordOption) -> String {
   match opt {
     TensionOpt(t) => tension_display(t)
     AlterationOpt(a) => alteration_display(a)
+    OmitOpt(d) => "omit" + d.to_string()
   }
 }
 

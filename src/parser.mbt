@@ -545,6 +545,7 @@ fn option_to_string(opt : ChordOption) -> String {
     AlterationOpt(FlatFive) => "b5"
     AlterationOpt(SharpFive) => "s5"
     AlterationOpt(Sus(d)) => "sus" + d.to_string()
+    OmitOpt(d) => "omit" + d.to_string()
   }
 }
 
@@ -756,6 +757,7 @@ fn option_to_json_value(opt : ChordOption) -> Json {
     AlterationOpt(SharpFive) => { "type": "s5" }
     AlterationOpt(Sus(d)) =>
       { "type": "sus", "degree": Json::string(d.to_string()) }
+    OmitOpt(d) => { "type": "omit", "degree": Json::string(d.to_string()) }
   }
 }
 

@@ -142,6 +142,7 @@ pub enum Alteration {
 pub enum ChordOption {
   TensionOpt(Tension)
   AlterationOpt(Alteration)
+  OmitOpt(Degree) // omit3 / omit5(その度数の音を鳴らさない。v1.6)
 }
 
 ///|

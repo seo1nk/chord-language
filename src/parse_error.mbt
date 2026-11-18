@@ -17,6 +17,8 @@ pub enum ParseErrorKind {
   InvalidSusDegree(String) // 不正なsusディグリー（2/4/6以外）
   InvalidQuartalCombination // q に付加要素(セブンス・sus・テンション等)が続いた
   InvalidPowerChordCombination // パワーコード 5 に付加要素が続いた(v1.4)
+  InvalidOmitDegree(String) // omit の度数が 3 / 5 以外(v1.6)
+  ConflictingOmit(String) // omit と、同じ度数を変える指定の組み合わせ(omit3 と sus、omit5 と b5 / #5。v1.6)
 
   // フロントマターのエラー
   UnclosedFrontmatter // 閉じの --- が無い
@@ -59,6 +61,8 @@ pub fn ParseError::kind_name(self : ParseError) -> String {
     InvalidSusDegree(_) => "InvalidSusDegree"
     InvalidQuartalCombination => "InvalidQuartalCombination"
     InvalidPowerChordCombination => "InvalidPowerChordCombination"
+    InvalidOmitDegree(_) => "InvalidOmitDegree"
+    ConflictingOmit(_) => "ConflictingOmit"
     UnclosedFrontmatter => "UnclosedFrontmatter"
     InvalidFrontmatterField(_) => "InvalidFrontmatterField"
     InvalidKey(_) => "InvalidKey"
@@ -92,6 +96,14 @@ pub fn ParseError::message(self : ParseError) -> String {
       "q(4度堆積)にはセブンスや sus・テンションなどを付けられません"
     InvalidPowerChordCombination =>
       "パワーコード(15 など)にはセブンスや sus・テンションなどを付けられません"
+    InvalidOmitDegree(d) =>
+      "不正な omit '\{d}'(omit3 か omit5 で書きます)"
+    ConflictingOmit(o) =>
+      if o == "omit3" {
+        "omit3 は sus と一緒に使えません(sus は 3 度を置き換えます)"
+      } else {
+        "omit5 は b5 / #5 と一緒に使えません(5 度を変えてから省くことになります)"
+      }
     UnclosedFrontmatter =>
       "フロントマターが閉じていません(--- が必要)"
     InvalidFrontmatterField(f) =>
@@ -390,6 +402,34 @@ pub fn invalid_power_chord_combination_error(
 ) -> ParseError {
   {
     kind: InvalidPowerChordCombination,
+    position: Some(pos),
+    line: None,
+    token: Some(token),
+  }
+}
+
+///|
+pub fn invalid_omit_degree_error(
+  degree : String,
+  token : String,
+  pos : Int,
+) -> ParseError {
+  {
+    kind: InvalidOmitDegree(degree),
+    position: Some(pos),
+    line: None,
+    token: Some(token),
+  }
+}
+
+///|
+pub fn conflicting_omit_error(
+  omit : String,
+  token : String,
+  pos : Int,
+) -> ParseError {
+  {
+    kind: ConflictingOmit(omit),
     position: Some(pos),
     line: None,
     token: Some(token),

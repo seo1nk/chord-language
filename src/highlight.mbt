@@ -259,6 +259,19 @@ fn highlight_chord_part(
       kind = "quality"
       continue
     }
+    // 括弧なしの omit(1omit3。v1.6)も、括弧の中と同じ色にする
+    if kind == "quality" &&
+      i + 5 <= end &&
+      chars[i] == 'o' &&
+      chars[i + 1] == 'm' &&
+      chars[i + 2] == 'i' &&
+      chars[i + 3] == 't' {
+      flush(i)
+      push(line_no, col + i, col + i + 5, "tension")
+      i = i + 5
+      seg = i
+      continue
+    }
     // 括弧なしのテンション(59 / 57b9#11 など)は括弧の中と同じ色にする
     if kind == "quality" {
       let n = bare_tension_length(chars, i, end, degree_end)

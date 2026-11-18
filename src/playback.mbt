@@ -163,6 +163,7 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
   for opt in node.options {
     match opt {
       AlterationOpt(a) => apply_alteration(a)
+      OmitOpt(_) => () // 下で 3 度・5 度を積むときに省く
       TensionOpt(t) =>
         intervals.push(
           match t {
@@ -178,11 +179,16 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
     }
   }
   intervals.push(0)
+  // omit3 / omit5 はその度数を鳴らさない(v1.6)
+  let omit3 = node.options.iter().any(fn(o) { o is OmitOpt(D3) })
+  let omit5 = node.options.iter().any(fn(o) { o is OmitOpt(D5) })
   // パワーコード(5)は 3 度を鳴らさない。sus は 3 度の位置に sus 音を鳴らす
-  if !(node.quality is Some(Power)) {
+  if !(node.quality is Some(Power)) && !omit3 {
     intervals.push(third)
   }
-  intervals.push(fifth)
+  if !omit5 {
+    intervals.push(fifth)
+  }
   match node.seventh {
     // ディミニッシュのセブンス(dim7)は減 7 度(9 半音)。短 7 度にするとハーフディミニッシュ
     // (m7b5)と同じ音になってしまう。dimM7 は長 7 度のまま

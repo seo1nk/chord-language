@@ -258,6 +258,7 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>1M9 1maj9</code><span>M9・M11・M13 は M7 を補う（1M7(9) と同じ）</span>
     #|<code>2m7-5</code><span>ハーフディミニッシュ（m7 の直後のみ。2m7b5 / 2m7(b5) と同じ）</span>
     #|<code>1sus4 4M7(b5) 57(#5)</code><span>sus2/4/6・フラットファイブ・シャープファイブ</span>
+    #|<code>1omit3 1add9omit3</code><span>3 度・5 度を鳴らさない（omit3 / omit5。表示は C(omit3) のように括弧つき）</span>
     #|<code>3m/5</code><span>スラッシュベース</span>
     #|<code>b3@red</code><span>強調色（red / blue / green、末尾）</span>
     #|<div class="chord-cheat-head">スロット</div>

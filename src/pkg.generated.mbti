@@ -6,6 +6,8 @@ pub fn chord_cheatsheet_html() -> String
 
 pub fn chord_css() -> String
 
+pub fn conflicting_omit_error(String, String, Int) -> ParseError
+
 pub fn duplicate_seventh_error(String, Int) -> ParseError
 
 pub fn empty_parentheses_error(String, Int) -> ParseError
@@ -31,6 +33,8 @@ pub fn invalid_frontmatter_field_error(String, Int) -> ParseError
 pub fn invalid_key_change_error(String, Int) -> ParseError
 
 pub fn invalid_key_error(String, Int) -> ParseError
+
+pub fn invalid_omit_degree_error(String, String, Int) -> ParseError
 
 pub fn invalid_power_chord_combination_error(String, Int) -> ParseError
 
@@ -128,6 +132,7 @@ pub struct ChordNode {
 pub enum ChordOption {
   TensionOpt(Tension)
   AlterationOpt(Alteration)
+  OmitOpt(Degree)
 }
 
 pub enum Degree {
@@ -186,6 +191,8 @@ pub enum ParseErrorKind {
   InvalidSusDegree(String)
   InvalidQuartalCombination
   InvalidPowerChordCombination
+  InvalidOmitDegree(String)
+  ConflictingOmit(String)
   UnclosedFrontmatter
   InvalidFrontmatterField(String)
   InvalidKey(String)

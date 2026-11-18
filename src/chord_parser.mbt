@@ -243,6 +243,42 @@ fn parse_alteration(
 }
 
 ///|
+/// omit の度数(omit3 / omit5)を読む。text は "omit" に続く部分
+fn parse_omit_degree(
+  text : String,
+  token : String,
+  pos : Int,
+) -> Result[Degree, ParseError] {
+  match text {
+    "3" => Ok(D3)
+    "5" => Ok(D5)
+    _ => Err(invalid_omit_degree_error("omit" + text, token, pos))
+  }
+}
+
+///|
+/// 括弧なしの omit(1omit3 / 1add9omit3 / 1omit3omit5)を読む(v1.6)
+fn parse_bare_omits(
+  state : ParserState,
+  token : String,
+) -> Result[(ParserState, Array[Degree]), ParseError] {
+  let mut s = state
+  let degrees : Array[Degree] = []
+  while s.pos + 4 <= s.length && s.take(4) == "omit" {
+    let digit = match s.advance(4).current_char() {
+      Some(c) => c.to_string()
+      None => ""
+    }
+    match parse_omit_degree(digit, token, s.pos) {
+      Ok(d) => degrees.push(d)
+      Err(e) => return Err(e)
+    }
+    s = s.advance(5)
+  }
+  Ok((s, degrees))
+}
+
+///|
 /// テンションをパース
 fn parse_tension(
   s : String,
@@ -307,6 +343,14 @@ fn parse_single_option(
     // "sus"（度数なし）や "sus11" 等もここに落ちる
     let degree_str = trimmed.unsafe_substring(start=3, end=trimmed.length())
     return Err(invalid_sus_degree_error(degree_str, token, pos))
+  }
+  // omit3 / omit5(v1.6)
+  if trimmed.has_prefix("omit") {
+    let digit = trimmed.unsafe_substring(start=4, end=trimmed.length())
+    return match parse_omit_degree(digit, token, pos) {
+      Ok(d) => Ok(OmitOpt(d))
+      Err(e) => Err(e)
+    }
   }
   // テンションとしてパース
   match parse_tension(trimmed, token, pos) {
@@ -498,6 +542,16 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
   state = after_bare
   bare.append(bare_after)
 
+  // 5c. 括弧なしの omit(1omit3 / 1add9omit3。v1.6)
+  let omit_pos = state.pos
+  let bare_omits = match parse_bare_omits(state, token) {
+    Ok((new_state, ds)) => {
+      state = new_state
+      ds
+    }
+    Err(e) => return Err(e)
+  }
+
   // 6. 括弧内オプション。括弧なしのテンションを先に置く(同じものは 1 つにまとめる)
   let options : Array[ChordOption] = []
   let seen : Array[String] = []
@@ -506,6 +560,13 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
     if !seen.contains(text) {
       seen.push(text)
       options.push(TensionOpt(t))
+    }
+  }
+  for d in bare_omits {
+    let text = option_to_string(OmitOpt(d))
+    if !seen.contains(text) {
+      seen.push(text)
+      options.push(OmitOpt(d))
     }
   }
   match parse_parenthesized_options(state, token) {
@@ -518,6 +579,22 @@ pub fn parse_chord(token : String) -> Result[ChordNode, ParseError] {
       }
     }
     Err(e) => return Err(e)
+  }
+
+  // 6a. omit と、同じ度数を変える指定は一緒に使えない(v1.6)。
+  // sus は 3 度を置き換え、b5 / #5 は 5 度を変えるので、省くと意味が食い違う
+  let has_sus = alteration is Some(Sus(_)) ||
+    options.iter().any(fn(o) { o is AlterationOpt(Sus(_)) })
+  let has_altered_fifth = alteration is Some(FlatFive | SharpFive) ||
+    options.iter().any(fn(o) { o is AlterationOpt(FlatFive | SharpFive) })
+  for o in options {
+    match o {
+      OmitOpt(D3) if has_sus =>
+        return Err(conflicting_omit_error("omit3", token, omit_pos))
+      OmitOpt(D5) if has_altered_fifth =>
+        return Err(conflicting_omit_error("omit5", token, omit_pos))
+      _ => ()
+    }
   }
 
   // 6b. q（4度堆積）はセブンス・sus/b5・テンションと組み合わせ不可
