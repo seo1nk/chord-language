@@ -184,7 +184,10 @@ fn chord_midi_notes(node : ChordNode, tonic_pc : Int) -> (Int, Array[Int]) {
   }
   intervals.push(fifth)
   match node.seventh {
-    Some(Seventh) => intervals.push(10)
+    // ディミニッシュのセブンス(dim7)は減 7 度(9 半音)。短 7 度にするとハーフディミニッシュ
+    // (m7b5)と同じ音になってしまう。dimM7 は長 7 度のまま
+    Some(Seventh) =>
+      intervals.push(if node.quality is Some(Diminish) { 9 } else { 10 })
     Some(MajorSeventh) => intervals.push(11)
     Some(Sixth) => intervals.push(9)
     Some(Add(d)) => intervals.push(add_degree_interval(d))

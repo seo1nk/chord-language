@@ -195,3 +195,13 @@ test "playback group holds" {
   assert_true(json3.contains("\"beat\":2,\"dur\":2"))
   assert_true(json3.contains("\"totalBeats\":4"))
 }
+
+///|
+/// dim7 は減 7 度(9 半音)。m7b5(短 7 度)と同じ音にならない
+test "playback diminished seventh" {
+  let dim7 = @chord_language.parse_to_playback("| 7dim7 |", "C")
+  let half = @chord_language.parse_to_playback("| 7m7b5 |", "C")
+  // B dim7 = B D F A♭(A♭ = MIDI 68 / 80)。m7b5 は B D F A
+  assert_true(dim7 != half)
+  assert_true(dim7.contains("68") || dim7.contains("80") || dim7.contains("56"))
+}
