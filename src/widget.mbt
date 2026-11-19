@@ -274,16 +274,16 @@ pub fn chord_cheatsheet_html() -> String {
     #|<code>&gt; ひかりの _ _-さきへ</code><span>直前のコード行への歌詞。空白と | = 区切り、_ 単独 = 歌詞なし、断片中の _ = スペース、- = 拍分割（_-さきへ で後半から）</span>
     #|<code>key: Eb / bpm: 96 / time: 6/8</code><span>フロントマター（先頭に --- で囲んで書く。省略時 C・120・4/4）。キーを宣言すると冒頭にキーチップが出る</span>
     #|<code>key: Am</code><span>短調は末尾に m。数字は長調と同じく主音から数える（Am F G = 1m b6 b7）</span>
-    #|<code>:2m7:</code><span>インラインコード譜（::: の外の本文中に 1 コード。ディグリー表示のみ）</span>
+    #|<code>:2m7:</code><span>インラインコード譜（:::chord ブロックの外の本文中に 1 コード。ディグリー表示のみ）</span>
     #|<div class="chord-cheat-head">例: 2-5-1（コピーして試してみてください）</div>
-    #|<pre class="chord-cheat-example">:::
+    #|<pre class="chord-cheat-example">:::chord
     #|---
     #|key: C
     #|---
     #|| 2m7 5(9) | 1M7 % |
     #|:::</pre>
     #|<div class="chord-cheat-head">例: 転調と拍分割（Bメロで全音上げ）</div>
-    #|<pre class="chord-cheat-example">:::
+    #|<pre class="chord-cheat-example">:::chord
     #|---
     #|key: C
     #|---
